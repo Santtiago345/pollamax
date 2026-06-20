@@ -22,9 +22,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang="es"
@@ -40,6 +40,7 @@ export default function RootLayout({
             &copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia Cocunubo-Neuta mundialista.
           </footer>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
