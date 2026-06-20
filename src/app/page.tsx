@@ -194,45 +194,104 @@ export default function Home() {
       </div>
 
       {/* Reglas de puntuación en miniatura */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-6 space-y-4">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-6 space-y-6">
         <h3 className="text-lg font-bold flex items-center gap-2">
           <Calendar className="h-5 w-5 text-emerald-400" />
           Lógica de Puntuación PollaMax
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Marcador Exacto</span>
             <span className="text-lg font-bold text-emerald-400">+5 Puntos</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Ganador Correcto</span>
             <span className="text-lg font-bold text-emerald-400">+3 Puntos</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Empate Correcto</span>
             <span className="text-lg font-bold text-emerald-400">+2 Puntos</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Diferencia de Goles</span>
             <span className="text-lg font-bold text-emerald-400">+1 Punto</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Goles de un Equipo</span>
             <span className="text-lg font-bold text-emerald-400">+1 Punto c/u</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Acierto Campeón</span>
             <span className="text-lg font-bold text-amber-400">+25 Puntos</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Acierto Subcampeón</span>
             <span className="text-lg font-bold text-amber-400">+17 Puntos</span>
-          </div>
-          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Acierto Tercero</span>
             <span className="text-lg font-bold text-amber-400">+13 Puntos</span>
-          </div>
+          </motion.div>
         </div>
+
+        {/* Sección de Rachas */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-orange-600/5 p-5 space-y-3"
+        >
+          <div className="flex items-center gap-2">
+            <Flame className="h-5 w-5 text-orange-400" />
+            <h4 className="font-bold text-orange-300">Sistema de Rachas</h4>
+          </div>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            Al acertar consecutivamente, activas rachas que multiplican tus puntos extra. Se consolidan solo al finalizar cada partido.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">🎯</span>
+                <span className="font-bold text-emerald-300">Racha de Marcadores</span>
+              </div>
+              <span className="text-xs text-zinc-400">Acierta el marcador exacto 3 veces seguidas → +1 pt extra, 4+ → +2 pts extra</span>
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">E x1</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">E x2</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x3 +1</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x4+ +2</span>
+              </div>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              className="rounded-xl border border-red-500/20 bg-red-500/5 p-3"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">⚡</span>
+                <span className="font-bold text-red-300">Racha de Ganadores</span>
+              </div>
+              <span className="text-xs text-zinc-400">Acierta el ganador (no exacto) 3 veces seguidas → +3 pts extra, 4+ → +1 pt extra</span>
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <span className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-bold">G x1</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-bold">G x2</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold border border-red-500/40">G x3 +3</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold border border-red-500/40">G x4+ +1</span>
+              </div>
+            </motion.div>
+          </div>
+          <p className="text-[11px] text-zinc-500 italic">
+            Si fallas un pronóstico, tu racha se reinicia. Las rachas solo se actualizan al finalizar cada partido.
+          </p>
+        </motion.div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import UserSettings from '@/components/UserSettings';
 import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home, Globe, Settings } from 'lucide-react';
+import StreakBadge from '@/components/StreakBadge';
 
 export const Navbar: React.FC = () => {
   const { user, profile, logout } = useAuth();
@@ -79,9 +80,14 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center gap-4">
             <div className="flex flex-col items-end">
               <span className="text-sm font-bold text-white max-w-[150px] truncate">{profile?.name}</span>
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full mt-0.5">
-                {profile?.points ?? 0} Pts
-              </span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full">
+                  {profile?.points ?? 0} Pts
+                </span>
+                {profile?.streak?.type && profile.streak.count > 0 && (
+                  <StreakBadge type={profile.streak.type} count={profile.streak.count} small />
+                )}
+              </div>
             </div>
 
             <motion.button

@@ -112,6 +112,17 @@ export async function GET() {
                 message: `🤖 Sincronizador: ${match.teamA} vs ${match.teamB} finalizó ${newScoreA}-${newScoreB}. ${bet.userName} ganó +${totalPoints} pts.${extraPoints > 0 ? ` +${extraPoints} pts por racha (${newStreak.type} x${newStreak.count})` : ''}`,
                 timestamp: new Date().toISOString()
               });
+
+              if (extraPoints > 0) {
+                const streakTypeLabel = newStreak.type === 'exact' ? 'Marcadores Exactos' : 'Ganadores';
+                const streakRef = doc(collection(db, 'history'));
+                batch.set(streakRef, {
+                  userId: bet.userId,
+                  userName: bet.userName,
+                  message: `🔥 ¡Racha de ${streakTypeLabel}! ${bet.userName} lleva ${newStreak.count} aciertos consecutivos y ganó +${extraPoints} pts extra.`,
+                  timestamp: new Date().toISOString()
+                });
+              }
             }
 
             // Resetear rachas de usuarios que no participaron en este partido

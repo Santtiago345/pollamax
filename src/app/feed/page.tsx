@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { RefreshCw, ClipboardList, Activity, Clock } from 'lucide-react';
+import { RefreshCw, ClipboardList, Activity, Clock, Flame } from 'lucide-react';
+import StreakBadge from '@/components/StreakBadge';
 
 interface HistoryEntry {
   id: string;
@@ -17,7 +18,7 @@ interface HistoryEntry {
 
 export default function FeedPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [users, setUsers] = useState<Array<{ uid: string; name: string; photoURL?: string; points?: number }>>([]);
+  const [users, setUsers] = useState<Array<{ uid: string; name: string; photoURL?: string; points?: number; streak?: { type: 'exact' | 'winner' | null; count: number } }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -118,11 +119,19 @@ export default function FeedPage() {
         <>
         <div className="flex items-center gap-3 overflow-x-auto pb-4">
           {users.map((u) => (
-            <div key={u.uid} className="flex items-center gap-2 px-2">
+            <div key={u.uid} className="flex items-center gap-2 px-2 shrink-0">
               <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
                 {u.photoURL ? <img src={u.photoURL} alt={u.name} className="h-full w-full object-cover" /> : <span className="text-xs text-zinc-400">{u.name.slice(0,2).toUpperCase()}</span>}
               </div>
-              <div className="text-xs text-zinc-300 font-semibold">{u.name.split(' ')[0]}</div>
+              <div className="flex flex-col">
+                <span className="text-xs text-zinc-300 font-semibold leading-tight">{u.name.split(' ')[0]}</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-amber-400 font-bold">{u.points ?? 0}</span>
+                  {u.streak?.type && u.streak.count > 0 && (
+                    <StreakBadge type={u.streak.type} count={u.streak.count} small />
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -138,32 +147,11 @@ export default function FeedPage() {
                 transition={{ duration: 0.28 }}
                 className="relative group"
               >
-                {/* Círculo indicador del feed */}
-                <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 border-2 border-zinc-800 group-hover:border-emerald-500 transition-colors">
-                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 group-hover:bg-emerald-400 transition-colors"></span>
-                </span>
-
-                {/* Contenedor del Mensaje */}
-                <div className="rounded-xl border border-zinc-900 bg-zinc-900/20 p-4 transition-all hover:bg-zinc-900/35 hover:border-zinc-800">
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
-                        {entry.userPhoto ? (
-                          <img src={entry.userPhoto} alt={entry.userName} className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="text-xs text-zinc-400">{entry.userName?.slice(0,2).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-zinc-200 leading-relaxed font-medium">
-                        {entry.message}
-                      </p>
-                    </div>
-                    <span className="flex items-center gap-1 text-[10px] text-zinc-500 whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900 font-semibold">
-                      <Clock className="h-3 w-3" />
-                      {formatTimeAgo(entry.timestamp)}
-                    </span>
-                  </div>
-                </div>
+                {['racha', 'Racha'].some(w => entry.message.includes(w)) ? (
+                  <StreakFeedItem entry={entry} formatTimeAgo={formatTimeAgo} />
+                ) : (
+                  <NormalFeedItem entry={entry} formatTimeAgo={formatTimeAgo} />
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
@@ -171,5 +159,64 @@ export default function FeedPage() {
         </>
       )}
     </div>
+  );
+}
+
+function NormalFeedItem({ entry, formatTimeAgo }: { entry: HistoryEntry; formatTimeAgo: (t: string) => string }) {
+  return (
+    <>
+      <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 border-2 border-zinc-800 group-hover:border-emerald-500 transition-colors">
+        <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 group-hover:bg-emerald-400 transition-colors"></span>
+      </span>
+      <div className="rounded-xl border border-zinc-900 bg-zinc-900/20 p-4 transition-all hover:bg-zinc-900/35 hover:border-zinc-800">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center shrink-0">
+              {entry.userPhoto ? (
+                <img src={entry.userPhoto} alt={entry.userName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs text-zinc-400">{entry.userName?.slice(0,2).toUpperCase()}</span>
+              )}
+            </div>
+            <p className="text-sm text-zinc-200 leading-relaxed font-medium">{entry.message}</p>
+          </div>
+          <span className="flex items-center gap-1 text-[10px] text-zinc-500 whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900 font-semibold shrink-0">
+            <Clock className="h-3 w-3" />
+            {formatTimeAgo(entry.timestamp)}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function StreakFeedItem({ entry, formatTimeAgo }: { entry: HistoryEntry; formatTimeAgo: (t: string) => string }) {
+  return (
+    <>
+      <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 border-2 border-orange-500 transition-colors">
+        <span className="h-1.5 w-1.5 rounded-full bg-orange-400"></span>
+      </span>
+      <div className="rounded-xl border border-orange-500/30 bg-gradient-to-r from-orange-500/5 to-transparent p-4 transition-all hover:bg-orange-500/10">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center shrink-0">
+              {entry.userPhoto ? (
+                <img src={entry.userPhoto} alt={entry.userName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs text-zinc-400">{entry.userName?.slice(0,2).toUpperCase()}</span>
+              )}
+            </div>
+            <motion.div initial={{ rotate: -15, scale: 0.8 }} animate={{ rotate: 0, scale: 1 }} transition={{ type: "spring", stiffness: 300 }}>
+              <Flame className="h-5 w-5 text-orange-400 shrink-0 mt-0.5" />
+            </motion.div>
+            <p className="text-sm leading-relaxed font-medium text-orange-200">{entry.message}</p>
+          </div>
+          <span className="flex items-center gap-1 text-[10px] text-zinc-500 whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900 font-semibold shrink-0">
+            <Clock className="h-3 w-3" />
+            {formatTimeAgo(entry.timestamp)}
+          </span>
+        </div>
+      </div>
+    </>
   );
 }

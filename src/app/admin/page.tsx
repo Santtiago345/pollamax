@@ -258,9 +258,23 @@ export default function AdminPage() {
         batch.set(historyRef, {
           userId: bet.userId,
           userName: bet.userName,
+          userPhoto: bet.userPhoto || null,
           message: `⚽ El partido ${match.teamA} vs ${match.teamB} finalizó ${gA}-${gB}. ${bet.userName} sumó +${totalPoints} puntos con su apuesta (${bet.predA}-${bet.predB})${extraPoints > 0 ? ` (+${extraPoints} pts por racha ${newStreak.type} x${newStreak.count})` : ''}.`,
           timestamp: new Date().toISOString()
         });
+
+        // Entrada dedicada cuando se alcanza un hito de racha
+        if (extraPoints > 0) {
+          const streakTypeLabel = newStreak.type === 'exact' ? 'Marcadores Exactos' : 'Ganadores';
+          const streakRef = doc(collection(db, 'history'));
+          batch.set(streakRef, {
+            userId: bet.userId,
+            userName: bet.userName,
+            userPhoto: bet.userPhoto || null,
+            message: `🔥 ¡Racha de ${streakTypeLabel}! ${bet.userName} lleva ${newStreak.count} aciertos consecutivos y ganó +${extraPoints} pts extra.`,
+            timestamp: new Date().toISOString()
+          });
+        }
       }
 
       // Resetear rachas de usuarios que no participaron en este partido
