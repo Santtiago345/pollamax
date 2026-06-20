@@ -185,11 +185,9 @@ export default function RankingPage() {
                               )}
                             </div>
                             <span>{profileItem.name}</span>
-                            {profileItem.streak && (
-                              <span className="ml-2">
-                                <StreakBadge type={profileItem.streak.type} count={profileItem.streak.count} />
-                              </span>
-                            )}
+                            <span className="ml-2">
+                              <StreakBadge type={profileItem.streak?.type || null} count={profileItem.streak?.count ?? 0} />
+                            </span>
                             {isCurrentUser && (
                               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">
                                 Tú

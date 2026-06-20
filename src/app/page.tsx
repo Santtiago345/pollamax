@@ -96,19 +96,26 @@ export default function Home() {
               <span className="text-xs text-zinc-500 block uppercase tracking-wider font-semibold">Puntos</span>
               <span className="text-2xl font-extrabold text-amber-400">{profile?.points ?? 0}</span>
             </div>
-              {profile?.streak && profile.streak.type && (
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.35 }}
-                  className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${profile.streak.type === 'exact' ? 'border-emerald-500 bg-emerald-500/6 text-emerald-300' : 'border-red-500 bg-red-500/6 text-red-300'}`}>
-                  <Flame className="h-5 w-5" />
-                  <div className="text-sm">
-                    <div className="font-bold">{profile.streak.type === 'exact' ? 'Racha Marcadores' : 'Racha Ganadores'}</div>
-                    <div className="text-xs">{profile.streak.count} partidos seguidos</div>
-                  </div>
-                </motion.div>
-              )}
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.35 }}
+                className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${profile?.streak?.type && profile.streak.count > 0 ? (profile.streak.type === 'exact' ? 'border-emerald-500 bg-emerald-500/6 text-emerald-300' : 'border-red-500 bg-red-500/6 text-red-300') : 'border-zinc-700 bg-zinc-800/20 text-zinc-500'}`}>
+                <Flame className={`h-5 w-5 ${profile?.streak?.type && profile.streak.count > 0 ? 'text-orange-400' : 'text-zinc-600'}`} />
+                <div className="text-sm">
+                  {profile?.streak?.type && profile.streak.count > 0 ? (
+                    <>
+                      <div className="font-bold">{profile.streak.type === 'exact' ? 'Racha Marcadores' : 'Racha Ganadores'}</div>
+                      <div className="text-xs">{profile.streak.count} partidos seguidos</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-bold">Sin Racha</div>
+                      <div className="text-xs">Acierta partidos seguidos para activar rachas</div>
+                    </>
+                  )}
+                </div>
+              </motion.div>
             {profile?.isAdmin && (
               <Link
                 href="/admin"

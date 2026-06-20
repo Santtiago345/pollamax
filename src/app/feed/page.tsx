@@ -127,9 +127,7 @@ export default function FeedPage() {
                 <span className="text-xs text-zinc-300 font-semibold leading-tight">{u.name.split(' ')[0]}</span>
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-amber-400 font-bold">{u.points ?? 0}</span>
-                  {u.streak?.type && u.streak.count > 0 && (
-                    <StreakBadge type={u.streak.type} count={u.streak.count} small />
-                  )}
+                  <StreakBadge type={u.streak?.type || null} count={u.streak?.count ?? 0} small />
                 </div>
               </div>
             </div>
