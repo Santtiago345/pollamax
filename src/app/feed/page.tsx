@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { RefreshCw, ClipboardList, Activity, Clock } from 'lucide-react';
@@ -127,8 +128,16 @@ export default function FeedPage() {
         </div>
 
         <div className="relative pl-6 border-l border-zinc-800 space-y-6">
+          <AnimatePresence>
           {history.map((entry) => (
-            <div key={entry.id} className="relative group">
+            <motion.div
+              key={entry.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.28 }}
+              className="relative group"
+            >
               {/* Círculo indicador del feed */}
               <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 border-2 border-zinc-800 group-hover:border-emerald-500 transition-colors">
                 <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 group-hover:bg-emerald-400 transition-colors"></span>
@@ -156,7 +165,9 @@ export default function FeedPage() {
                     {formatTimeAgo(entry.timestamp)}
                   </span>
                 </div>
-              </div>
+              </motion.div>
+            ))}
+            </AnimatePresence>
             </div>
           ))}
         </div>

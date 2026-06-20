@@ -27,6 +27,7 @@ interface UserProfile {
   };
   photoURL?: string;
   country?: string;
+  streak?: { type: 'exact' | 'winner' | null; count: number };
 }
 
 interface AuthContextType {

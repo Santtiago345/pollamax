@@ -79,18 +79,59 @@ export async function GET() {
           betsSnapshot.forEach((betDoc) => {
             const bet = betDoc.data();
             const pointsEarned = calculatePoints(bet.predA, bet.predB, match.scoreA!, match.scoreB!);
+            // Determinar tipo de acierto para rachas
+            const isExact = bet.predA === match.scoreA && bet.predB === match.scoreB;
+            const predDiff = Math.sign(bet.predA - bet.predB);
+            const actualDiff = Math.sign(match.scoreA! - match.scoreB!);
+            const isWinner = predDiff === actualDiff && predDiff !== 0 && !isExact;
 
-            pointsBatch.update(betDoc.ref, { pointsEarned, processed: true });
-            pointsBatch.update(doc(db, 'users', bet.userId), { points: increment(pointsEarned) });
+            // Leer estado actual de racha del usuario
+            const userRef = doc(db, 'users', bet.userId);
+            const userSnap = await getDoc(userRef);
+            const userData: any = userSnap.exists() ? userSnap.data() : {};
+            const prevStreak = userData.streak || { type: null, count: 0 };
+
+            let extraPoints = 0;
+            let newStreak: any = { type: null, count: 0, lastMatchId: null };
+
+            if (isExact) {
+              const newCount = prevStreak.type === 'exact' ? (prevStreak.count || 0) + 1 : 1;
+              if (newCount === 3) extraPoints = 1;
+              else if (newCount >= 4) extraPoints = 2;
+              newStreak = { type: 'exact', count: newCount, lastMatchId: match.id };
+            } else if (isWinner) {
+              const newCount = prevStreak.type === 'winner' ? (prevStreak.count || 0) + 1 : 1;
+              if (newCount === 3) extraPoints = 3;
+              else if (newCount >= 4) extraPoints = 1;
+              newStreak = { type: 'winner', count: newCount, lastMatchId: match.id };
+            } else {
+              // Falló o no acertó: pierde la racha
+              newStreak = { type: null, count: 0, lastMatchId: null };
+            }
+
+            const totalPoints = pointsEarned + extraPoints;
+
+            pointsBatch.update(betDoc.ref, { pointsEarned: totalPoints, processed: true });
+            pointsBatch.update(userRef, { points: increment(totalPoints), streak: newStreak });
 
             const historyRef = doc(collection(db, 'history'));
             pointsBatch.set(historyRef, {
               userId: bet.userId,
               userName: bet.userName,
-              message: `⚽ ${match.teamA} ${match.scoreA}-${match.scoreB} ${match.teamB} finalizado. ${bet.userName} ganó +${pointsEarned} pts (pronosticó ${bet.predA}-${bet.predB}).`,
+              message: `⚽ ${match.teamA} ${match.scoreA}-${match.scoreB} ${match.teamB} finalizado. ${bet.userName} ganó +${totalPoints} pts (pronosticó ${bet.predA}-${bet.predB}).${extraPoints > 0 ? ` +${extraPoints} pts por racha (${newStreak.type} x${newStreak.count})` : ''}`,
               timestamp: new Date().toISOString(),
             });
             pointsAwarded++;
+          });
+
+          // Resetear rachas de usuarios que no participaron en este partido
+          const bettors = new Set(betsSnapshot.docs.map((d) => d.data().userId));
+          const usersSnap = await getDocs(collection(db, 'users'));
+          usersSnap.forEach((uDoc) => {
+            if (!bettors.has(uDoc.id)) {
+              const uRef = doc(db, 'users', uDoc.id);
+              pointsBatch.update(uRef, { streak: { type: null, count: 0, lastMatchId: null } });
+            }
           });
 
           if (!betsSnapshot.empty) {

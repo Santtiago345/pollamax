@@ -207,21 +207,50 @@ export default function AdminPage() {
         status: 'finished'
       });
 
-      // 3. Procesar cada apuesta, calcular puntos y sumárselos al perfil del usuario
-      querySnapshot.forEach((betDoc) => {
+      // 3. Procesar cada apuesta, calcular puntos, rachas y sumárselos al perfil del usuario
+      for (const betDoc of querySnapshot.docs) {
         const bet = betDoc.data();
         const pointsEarned = calculatePoints(bet.predA, bet.predB, gA, gB);
 
+        const isExact = bet.predA === gA && bet.predB === gB;
+        const predDiff = Math.sign(bet.predA - bet.predB);
+        const actualDiff = Math.sign(gA - gB);
+        const isWinner = predDiff === actualDiff && predDiff !== 0 && !isExact;
+
+        const userRef = doc(db, 'users', bet.userId);
+        const userSnap = await getDoc(userRef);
+        const userData: any = userSnap.exists() ? userSnap.data() : {};
+        const prevStreak = userData.streak || { type: null, count: 0 };
+
+        let extraPoints = 0;
+        let newStreak: any = { type: null, count: 0, lastMatchId: null };
+
+        if (isExact) {
+          const newCount = prevStreak.type === 'exact' ? (prevStreak.count || 0) + 1 : 1;
+          if (newCount === 3) extraPoints = 1;
+          else if (newCount >= 4) extraPoints = 2;
+          newStreak = { type: 'exact', count: newCount, lastMatchId: match.id };
+        } else if (isWinner) {
+          const newCount = prevStreak.type === 'winner' ? (prevStreak.count || 0) + 1 : 1;
+          if (newCount === 3) extraPoints = 3;
+          else if (newCount >= 4) extraPoints = 1;
+          newStreak = { type: 'winner', count: newCount, lastMatchId: match.id };
+        } else {
+          newStreak = { type: null, count: 0, lastMatchId: null };
+        }
+
+        const totalPoints = pointsEarned + extraPoints;
+
         // Actualizar apuesta
         batch.update(betDoc.ref, {
-          pointsEarned,
+          pointsEarned: totalPoints,
           processed: true
         });
 
-        // Incrementar puntos del usuario
-        const userRef = doc(db, 'users', bet.userId);
+        // Incrementar puntos del usuario y guardar racha
         batch.update(userRef, {
-          points: increment(pointsEarned)
+          points: increment(totalPoints),
+          streak: newStreak
         });
 
         // Escribir en el historial
@@ -229,9 +258,19 @@ export default function AdminPage() {
         batch.set(historyRef, {
           userId: bet.userId,
           userName: bet.userName,
-          message: `⚽ El partido ${match.teamA} vs ${match.teamB} finalizó ${gA}-${gB}. ${bet.userName} sumó +${pointsEarned} puntos con su apuesta (${bet.predA}-${bet.predB}).`,
+          message: `⚽ El partido ${match.teamA} vs ${match.teamB} finalizó ${gA}-${gB}. ${bet.userName} sumó +${totalPoints} puntos con su apuesta (${bet.predA}-${bet.predB})${extraPoints > 0 ? ` (+${extraPoints} pts por racha ${newStreak.type} x${newStreak.count})` : ''}.`,
           timestamp: new Date().toISOString()
         });
+      }
+
+      // Resetear rachas de usuarios que no participaron en este partido
+      const bettors = new Set(querySnapshot.docs.map(d => d.data().userId));
+      const usersSnap = await getDocs(collection(db, 'users'));
+      usersSnap.forEach((uDoc) => {
+        if (!bettors.has(uDoc.id)) {
+          const uRef = doc(db, 'users', uDoc.id);
+          batch.update(uRef, { streak: { type: null, count: 0, lastMatchId: null } });
+        }
       });
 
       // Si nadie apostó, registrar fin del partido en el feed de todos modos

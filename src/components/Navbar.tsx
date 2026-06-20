@@ -5,11 +5,13 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home, Globe } from 'lucide-react';
+import UserSettings from '@/components/UserSettings';
+import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home, Globe, Settings } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, profile, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const pathname = usePathname();
 
   if (!user) return null; // No mostrar navbar si no está logueado
@@ -91,6 +93,15 @@ export const Navbar: React.FC = () => {
             >
               <LogOut className="h-5 w-5" />
             </motion.button>
+            <motion.button
+              onClick={() => setSettingsOpen(true)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:text-white hover:bg-zinc-950 transition-all active:scale-95"
+              title="Configuración"
+            >
+              <Settings className="h-5 w-5" />
+            </motion.button>
           </div>
 
           {/* Botón menú móvil */}
@@ -148,9 +159,19 @@ export const Navbar: React.FC = () => {
               <LogOut className="h-5 w-5" />
               Cerrar Sesión
             </motion.button>
+            <motion.button
+              onClick={() => { closeMobileMenu(); setSettingsOpen(true); }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-zinc-300 hover:bg-zinc-900/20 transition-all"
+            >
+              <Settings className="h-5 w-5" />
+              Configuración
+            </motion.button>
           </div>
         </div>
       )}
+      <UserSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </nav>
   );
 };

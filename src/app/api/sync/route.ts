@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, writeBatch, doc, getDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { calculatePoints } from '@/lib/rules';
 
@@ -60,33 +60,68 @@ export async function GET() {
             );
             const betsSnapshot = await getDocs(betsQuery);
 
-            betsSnapshot.forEach((betDoc) => {
+            // Procesar apuestas y rachas
+            for (const betDoc of betsSnapshot.docs) {
               const bet = betDoc.data();
               const pointsEarned = calculatePoints(bet.predA, bet.predB, newScoreA, newScoreB);
 
+              const isExact = bet.predA === newScoreA && bet.predB === newScoreB;
+              const predDiff = Math.sign(bet.predA - bet.predB);
+              const actualDiff = Math.sign(newScoreA - newScoreB);
+              const isWinner = predDiff === actualDiff && predDiff !== 0 && !isExact;
+
+              // Leer estado actual de racha del usuario
+              const userRef = doc(db, 'users', bet.userId);
+              const userSnap = await getDoc(userRef);
+              const userData: any = userSnap.exists() ? userSnap.data() : {};
+              const prevStreak = userData.streak || { type: null, count: 0 };
+
+              let extraPoints = 0;
+              let newStreak: any = { type: null, count: 0, lastMatchId: null };
+
+              if (isExact) {
+                const newCount = prevStreak.type === 'exact' ? (prevStreak.count || 0) + 1 : 1;
+                if (newCount === 3) extraPoints = 1;
+                else if (newCount >= 4) extraPoints = 2;
+                newStreak = { type: 'exact', count: newCount, lastMatchId: matchDoc.id };
+              } else if (isWinner) {
+                const newCount = prevStreak.type === 'winner' ? (prevStreak.count || 0) + 1 : 1;
+                if (newCount === 3) extraPoints = 3;
+                else if (newCount >= 4) extraPoints = 1;
+                newStreak = { type: 'winner', count: newCount, lastMatchId: matchDoc.id };
+              } else {
+                newStreak = { type: null, count: 0, lastMatchId: null };
+              }
+
+              const totalPoints = pointsEarned + extraPoints;
+
               batch.update(betDoc.ref, {
-                pointsEarned,
+                pointsEarned: totalPoints,
                 processed: true
               });
 
-              // Incrementar puntos del usuario
-              const userRef = doc(db, 'users', bet.userId);
               batch.update(userRef, {
-                points: {
-                  // Firebase Firestore en Next.js Client SDK/Web API usa increment
-                  // Pero del lado de Node/Server en API Routes es compatible con firestore increment helper:
-                  __op: 'Increment',
-                  value: pointsEarned
-                }
+                points: increment(totalPoints),
+                streak: newStreak
               });
 
               const historyRef = doc(collection(db, 'history'));
               batch.set(historyRef, {
                 userId: bet.userId,
                 userName: bet.userName,
-                message: `🤖 Sincronizador: ${match.teamA} vs ${match.teamB} finalizó ${newScoreA}-${newScoreB}. ${bet.userName} ganó +${pointsEarned} pts.`,
+                message: `🤖 Sincronizador: ${match.teamA} vs ${match.teamB} finalizó ${newScoreA}-${newScoreB}. ${bet.userName} ganó +${totalPoints} pts.${extraPoints > 0 ? ` +${extraPoints} pts por racha (${newStreak.type} x${newStreak.count})` : ''}`,
                 timestamp: new Date().toISOString()
               });
+            }
+
+            // Resetear rachas de usuarios que no participaron en este partido
+            const bettors = new Set(betsSnapshot.docs.map((d) => d.data().userId));
+            const usersSnap = await getDocs(collection(db, 'users'));
+            usersSnap.forEach((uDoc) => {
+              if (!bettors.has(uDoc.id)) {
+                const uRef = doc(db, 'users', uDoc.id);
+                batch.update(uRef, { streak: { type: null, count: 0, lastMatchId: null } });
+              }
             });
             
             if (betsSnapshot.empty) {

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, addDoc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { isBetLocked, calculatePoints } from '@/lib/rules';
 import { Lock, Unlock, Check, RefreshCw, AlertCircle } from 'lucide-react';
@@ -78,18 +78,20 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
       const betId = `${userId}_${match.id}`;
       const betRef = doc(db, 'bets', betId);
       
-      const newBet: Bet = {
+      const newBet: any = {
         id: betId,
         userId,
         userName,
+        userPhoto: userPhoto || null,
         matchId: match.id,
         predA: goalA,
         predB: goalB,
         processed: false,
+        createdAt: new Date().toISOString()
       };
 
-      // Guardar apuesta
-      await setDoc(betRef, newBet);
+      // Guardar apuesta (set con merge por seguridad)
+      await setDoc(betRef, newBet, { merge: true });
 
       // Crear entrada en el historial de actividad con avatar si existe
       const historyRef = collection(db, 'history');
@@ -105,10 +107,58 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving bet', error);
-      alert('Error al guardar tu apuesta. Inténtalo de nuevo.');
+      alert(`Error al guardar tu apuesta. Inténtalo de nuevo. (${error?.message || 'unknown'})`);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Comparar con otros jugadores: modal
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareList, setCompareList] = useState<Array<any>>([]);
+
+  const openCompare = async () => {
+    setCompareOpen(true);
+    setCompareLoading(true);
+    try {
+      const q = query(collection(db, 'bets'), where('matchId', '==', match.id));
+      const snap = await getDocs(q);
+      const results: any[] = [];
+
+      for (const d of snap.docs) {
+        const b = d.data();
+        // Obtener info del usuario (puntos y racha)
+        const userRef = doc(db, 'users', b.userId);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.exists() ? userSnap.data() : {};
+
+        results.push({
+          bet: b,
+          user: {
+            uid: b.userId,
+            name: b.userName,
+            photoURL: b.userPhoto || userData.photoURL || null,
+            points: userData.points || 0,
+            streak: userData.streak || { type: null, count: 0 }
+          }
+        });
+      }
+
+      // Ordenar por puntos desc
+      results.sort((a, b) => (b.user.points || 0) - (a.user.points || 0));
+      setCompareList(results);
+    } catch (err) {
+      console.error('Error fetching compare list', err);
+      setCompareList([]);
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const closeCompare = () => {
+    setCompareOpen(false);
+    setCompareList([]);
   };
 
   // Formatear Fecha
@@ -265,7 +315,67 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
             )
           )}
         </div>
+        <div className="ml-3">
+          <button
+            onClick={() => openCompare()}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-semibold transition-all"
+          >
+            Comparar con otros
+          </button>
+        </div>
       </div>
     </div>
+
+    {/* Modal Comparar */}
+    {compareOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold">Apuestas - {match.teamA} vs {match.teamB}</h3>
+            <button onClick={closeCompare} className="text-zinc-400 hover:text-white">Cerrar</button>
+          </div>
+
+          {compareLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <RefreshCw className="h-6 w-6 animate-spin text-emerald-400" />
+            </div>
+          ) : compareList.length === 0 ? (
+            <div className="py-8 text-center text-zinc-400">No hay apuestas registradas para este partido.</div>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {compareList.map((entry) => (
+                <div key={entry.bet.id} className="flex items-center gap-3 rounded-lg p-3 border border-zinc-800 bg-zinc-950/30">
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
+                    {entry.user.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={entry.user.photoURL} alt={entry.user.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-zinc-400">{entry.user.name.slice(0,2).toUpperCase()}</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-white">{entry.user.name}</div>
+                      <div className="text-xs text-zinc-400">{entry.user.points} pts</div>
+                    </div>
+                    <div className="text-sm text-zinc-300">Pronóstico: <strong className="text-white">{entry.bet.predA}-{entry.bet.predB}</strong></div>
+                    <div className="text-xs mt-1">
+                      {entry.user.streak && entry.user.streak.type ? (
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${entry.user.streak.type === 'exact' ? 'text-emerald-300 bg-emerald-500/6' : 'text-red-300 bg-red-500/6'}`}>
+                          {entry.user.streak.type === 'exact' ? `Racha Marcadores x${entry.user.streak.count}` : `Racha Ganadores x${entry.user.streak.count}`}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500 text-[11px]">Sin racha</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
   );
 };
