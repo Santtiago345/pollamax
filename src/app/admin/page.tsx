@@ -19,7 +19,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2 } from 'lucide-react';
+import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download } from 'lucide-react';
 
 interface Match {
   id: string;
@@ -57,6 +57,10 @@ export default function AdminPage() {
   const [officialThirdPlace, setOfficialThirdPlace] = useState('');
   const [podiumProcessing, setPodiumProcessing] = useState(false);
   const [podiumProcessedStatus, setPodiumProcessedStatus] = useState(false);
+
+  // Sincronización Mundial
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ message: string; status: string } | null>(null);
 
   // 1. Verificar si el usuario es administrador
   const isAdmin = profile?.isAdmin === true;
@@ -115,7 +119,7 @@ export default function AdminPage() {
     setCreating(true);
     try {
       const matchDateTime = new Date(`${newDate}T${newTime}`);
-      
+
       const matchData = {
         teamA: newTeamA,
         teamB: newTeamB,
@@ -128,7 +132,7 @@ export default function AdminPage() {
       };
 
       await addDoc(collection(db, 'matches'), matchData);
-      
+
       // Limpiar formulario
       setNewTeamA('');
       setNewTeamB('');
@@ -287,7 +291,7 @@ export default function AdminPage() {
 
         if (userData.predictions) {
           const preds = userData.predictions;
-          
+
           if (preds.champion === officialChampion) {
             totalPodiumPoints += 25;
           }
@@ -338,6 +342,32 @@ export default function AdminPage() {
     }
   };
 
+  const handleWorldCupSync = async () => {
+    const confirmSync = window.confirm(
+      '¿Sincronizar todos los partidos del Mundial 2026 desde openfootball?\n\nEsto importará o actualizará automáticamente todos los partidos y calculará las tablas de grupos.'
+    );
+    if (!confirmSync) return;
+
+    setSyncLoading(true);
+    setSyncResult(null);
+
+    try {
+      const response = await fetch('/api/world-cup-sync');
+      const data = await response.json();
+      setSyncResult({ message: data.message, status: data.status });
+      if (data.status === 'success') {
+        alert(`✅ ${data.message}`);
+      } else {
+        alert(`⚠️ ${data.message}`);
+      }
+    } catch (error) {
+      setSyncResult({ message: 'Error de conexión al intentar sincronizar.', status: 'error' });
+      alert('Error al conectar con la API de sincronización.');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   const handleSeedSampleData = async () => {
     const confirmSeed = window.confirm(
       '¿Deseas precargar 5 partidos de prueba para el Mundial (fase de grupos)?'
@@ -347,7 +377,7 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const batch = writeBatch(db);
-      
+
       const sampleMatches = [
         {
           teamA: 'Qatar',
@@ -418,7 +448,7 @@ export default function AdminPage() {
 
   const handleDeleteMatch = async (matchId: string) => {
     if (!window.confirm('¿Estás seguro de eliminar este partido?')) return;
-    
+
     try {
       const matchRef = doc(db, 'matches', matchId);
       const batch = writeBatch(db);
@@ -468,13 +498,34 @@ export default function AdminPage() {
             Gestión completa de partidos, estados, puntuación en vivo y evaluación del podio.
           </p>
         </div>
-        <button
-          onClick={handleSeedSampleData}
-          className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all self-start sm:self-auto"
-        >
-          Precargar partidos de prueba
-        </button>
+        <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
+          <button
+            onClick={handleWorldCupSync}
+            disabled={syncLoading}
+            className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+          >
+            {syncLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+            {syncLoading ? 'Sincronizando...' : 'Sincronizar Mundial'}
+          </button>
+          <button
+            onClick={handleSeedSampleData}
+            className="rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-sm font-bold text-zinc-300 hover:bg-zinc-700 transition-all"
+          >
+            Precargar prueba
+          </button>
+        </div>
       </div>
+
+      {/* Resultado de la última sincronización */}
+      {syncResult && (
+        <div className={`rounded-xl border px-4 py-3 text-sm flex items-center gap-3 ${syncResult.status === 'success'
+            ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
+            : 'border-red-500/20 bg-red-500/5 text-red-400'
+          }`}>
+          {syncResult.status === 'success' ? <Check className="h-4 w-4 shrink-0" /> : <Globe className="h-4 w-4 shrink-0" />}
+          {syncResult.message}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formularios de Configuración (Crear Partido y Podio) */}
@@ -485,7 +536,7 @@ export default function AdminPage() {
               <Plus className="h-5 w-5 text-emerald-400" />
               Nuevo Partido
             </h3>
-            
+
             <form onSubmit={handleCreateMatch} className="space-y-4 text-sm">
               <div className="space-y-1">
                 <label className="text-zinc-400 text-xs font-semibold uppercase">Equipo A</label>
@@ -724,7 +775,7 @@ export default function AdminPage() {
                             <Play className="h-3 w-3" /> Poner Vivo
                           </button>
                         )}
-                        
+
                         {(match.status === 'scheduled' || match.status === 'live') && (
                           <button
                             onClick={() => {

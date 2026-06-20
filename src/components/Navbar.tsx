@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home } from 'lucide-react';
+import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home, Globe } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, profile, logout } = useAuth();
@@ -16,6 +16,7 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { href: '/', label: 'Inicio', icon: Home },
     { href: '/matches', label: 'Partidos', icon: Swords },
+    { href: '/mundial', label: 'Mundial', icon: Globe },
     { href: '/ranking', label: 'Posiciones', icon: ListOrdered },
     { href: '/podium', label: 'Podio', icon: Trophy },
     { href: '/feed', label: 'Feed', icon: ClipboardList },
@@ -52,11 +53,10 @@ export const Navbar: React.FC = () => {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-                      isActive
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${isActive
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50'
-                    }`}
+                      }`}
                   >
                     <Icon className="h-4 w-4" />
                     {link.label}
@@ -74,7 +74,7 @@ export const Navbar: React.FC = () => {
                 {profile?.points ?? 0} Pts
               </span>
             </div>
-            
+
             <button
               onClick={logout}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:text-white hover:bg-zinc-950 transition-all active:scale-95"
@@ -115,11 +115,10 @@ export const Navbar: React.FC = () => {
                   key={link.href}
                   href={link.href}
                   onClick={closeMobileMenu}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-all ${
-                    isActive
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-all ${isActive
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                       : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-5 w-5" />
                   {link.label}
