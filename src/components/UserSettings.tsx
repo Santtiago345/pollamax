@@ -7,6 +7,7 @@ import { db, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { COUNTRIES } from '@/lib/countries';
 import { Check, X, Camera, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { user, profile } = useAuth();
@@ -32,8 +33,6 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-
-  if (!open || !user) return null;
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
@@ -78,8 +77,22 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 bg-black/70 overflow-y-auto pt-12 sm:pt-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl my-8">
+    <AnimatePresence>
+    {open && user && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 bg-black/70 overflow-y-auto pt-12 sm:pt-4"
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0, y: 10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.92, opacity: 0, y: 10 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl my-8"
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">Configuración de Usuario</h3>
           <button onClick={onClose} className="text-zinc-400 hover:text-white transition-colors"><X className="h-5 w-5" /></button>
@@ -175,8 +188,10 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+      </motion.div>
+    )}
+    </AnimatePresence>
   );
 };
 

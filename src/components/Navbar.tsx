@@ -85,10 +85,10 @@ export const Navbar: React.FC = () => {
               <div className="flex flex-col items-end">
                 <span className="text-sm font-bold text-white max-w-[150px] truncate">{profile?.name}</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full">
-                    {profile?.points ?? 0} Pts
-                  </span>
-                  <StreakBadge type={streakType} count={streakCount} small />
+                <Link href="/#puntos" className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full hover:bg-amber-500/20 hover:border-amber-500/50 transition-all cursor-pointer">
+                  {profile?.points ?? 0} Pts
+                </Link>
+                <Link href="/#rachas"><StreakBadge type={streakType} count={streakCount} small /></Link>
                 </div>
               </div>
 

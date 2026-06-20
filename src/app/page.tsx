@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { Trophy, Star, ShieldCheck, Flame, LogIn, Swords, ClipboardList, ListOrdered, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import ScrollReveal from '@/components/ScrollReveal';
 
 export default function Home() {
   const { user, profile, loading, loginWithGoogle, logout } = useAuth();
@@ -80,6 +81,7 @@ export default function Home() {
   return (
     <div className="py-6 px-4 max-w-4xl mx-auto space-y-8 bg-zinc-950 text-white min-h-[85vh]">
       {/* Bienvenida */}
+      <ScrollReveal>
       <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 sm:p-8 overflow-hidden">
         <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -128,8 +130,10 @@ export default function Home() {
           </div>
         </div>
       </div>
+      </ScrollReveal>
 
       {/* Grid de Accesos Directos */}
+      <ScrollReveal delay={0.1}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Ir a partidos */}
         <Link
@@ -199,9 +203,11 @@ export default function Home() {
           </p>
         </Link>
       </div>
+      </ScrollReveal>
 
       {/* Reglas de puntuación en miniatura */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-6 space-y-6">
+      <ScrollReveal delay={0.2}>
+      <div id="puntos" className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-6 space-y-6">
         <h3 className="text-lg font-bold flex items-center gap-2">
           <Calendar className="h-5 w-5 text-emerald-400" />
           Lógica de Puntuación PollaMax
@@ -242,6 +248,7 @@ export default function Home() {
         </div>
 
         {/* Sección de Rachas */}
+        <div id="rachas">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -299,7 +306,9 @@ export default function Home() {
             Si fallas un pronóstico, tu racha se reinicia. Las rachas solo se actualizan al finalizar cada partido.
           </p>
         </motion.div>
+        </div>
       </div>
+      </ScrollReveal>
     </div>
   );
 }
