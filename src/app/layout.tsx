@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'PollaMax - Mundial',
-  description: 'La polla mundialista familiar en tiempo real. Pronostica partidos, gana puntos y compite en el ranking familiar.',
+  description: 'La polla mundialista familiar en tiempo real. Pronostica partidos, gana puntos y compite en el ranking familiar para ganar un gran premio.',
 };
 
 export default function RootLayout({
@@ -36,7 +36,7 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="py-6 border-t border-zinc-900 bg-black text-center text-xs text-zinc-500">
-            &copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia mundialista.
+            &copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia Cocunubo-Neuta mundialista.
           </footer>
         </AuthProvider>
       </body>

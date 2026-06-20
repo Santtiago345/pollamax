@@ -42,7 +42,7 @@ export default function Home() {
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 shadow-lg shadow-emerald-500/30">
             <Trophy className="h-10 w-10 text-amber-300" />
           </div>
-          
+
           <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
             Polla<span className="bg-gradient-to-r from-emerald-400 to-amber-300 bg-clip-text text-transparent">Max</span>
           </h1>
@@ -68,7 +68,7 @@ export default function Home() {
 
           <div className="mt-8 flex items-center justify-center gap-6 text-xs text-zinc-500">
             <span className="flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-amber-400" /> Actualizaciones en vivo</span>
-            <span className="flex items-center gap-1.5"><Flame className="h-3.5 w-3.5 text-orange-400" /> 100% Responsivo</span>
+            <span className="flex items-center gap-1.5"><Flame className="h-3.5 w-3.5 text-orange-400" /> Consigue una racha de apuestas para ganar mas puntos!</span>
           </div>
         </div>
       </div>
