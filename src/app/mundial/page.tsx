@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchWorldCupData, processMatches, calculateGroupStandings, type ProcessedMatch, type GroupStandings, type GroupTeamStats } from '@/lib/worldCupData';
+import { fetchWorldCupData, processMatches, calculateGroupStandings, getSpanishName, type ProcessedMatch, type GroupStandings, type GroupTeamStats } from '@/lib/worldCupData';
 import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, CheckCircle2, Clock, Play, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
@@ -173,7 +173,7 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
       }`}>
       {/* Equipo A */}
       <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-        <span className="font-bold text-sm text-white truncate text-right">{match.teamA}</span>
+          <span className="font-bold text-sm text-white truncate text-right">{getSpanishName(match.teamA)}</span>
         <span className="text-2xl shrink-0">{match.teamAFlag}</span>
       </div>
 
@@ -220,7 +220,7 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
       {/* Equipo B */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className="text-2xl shrink-0">{match.teamBFlag}</span>
-        <span className="font-bold text-sm text-white truncate">{match.teamB}</span>
+          <span className="font-bold text-sm text-white truncate">{getSpanishName(match.teamB)}</span>
       </div>
     </div>
   );
@@ -280,48 +280,54 @@ function GroupsTab({ groups }: { groups: GroupStandings[] }) {
       {groups.map((group) => (
         <div key={group.group} className="rounded-2xl border border-zinc-800 bg-zinc-900/20 overflow-hidden shadow">
           {/* Header del Grupo */}
-          <div className="px-4 py-3 bg-emerald-500/8 border-b border-zinc-800/70 flex justify-between items-center">
-            <h3 className="font-black text-emerald-400 text-sm tracking-wider uppercase">{group.group.replace('Group ', 'Grupo ')}</h3>
-            <span className="text-[10px] text-zinc-500 font-semibold uppercase">PJ PG PE PP GF GC DG Pts</span>
+          <div className="px-4 py-2 bg-emerald-500/8 border-b border-zinc-800/70">
+            <div className="flex items-center">
+              <h3 className="font-black text-emerald-400 text-sm tracking-wider uppercase flex-1">{group.group.replace('Group ', 'Grupo ')}</h3>
+              <div className="grid grid-cols-8 gap-0 text-[9px] text-zinc-500 font-semibold uppercase text-center" style={{ minWidth: 200 }}>
+                <span>PJ</span><span>PG</span><span>PE</span><span>PP</span><span>GF</span><span>GC</span><span>DG</span><span>Pts</span>
+              </div>
+            </div>
           </div>
 
-          {/* Filas de Equipos */}
+          {/* Filas de Equipos - usando grid para alinear columnas */}
           <div className="divide-y divide-zinc-900/50">
             {group.teams.map((team, idx) => {
-              const isClassified = idx < 3; // Top 3 clasifican al Ronda de 32
-              const isBorderline = idx === 2;
+              const isClassified = idx < 3;
 
               return (
                 <div
                   key={team.team}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs transition-colors ${idx === 0 ? 'bg-amber-500/5' : idx === 1 ? 'bg-zinc-800/10' : idx === 2 ? 'bg-orange-500/5' : ''
-                    }`}
+                  className={`grid grid-cols-[auto_auto_1fr_auto] items-center gap-1.5 px-3 py-2.5 text-xs transition-colors ${
+                    idx === 0 ? 'bg-amber-500/5' : idx === 1 ? 'bg-zinc-800/10' : idx === 2 ? 'bg-orange-500/5' : ''
+                  }`}
                 >
                   {/* Posición */}
-                  <span className={`w-5 text-center font-black text-xs shrink-0 ${idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-zinc-300' : idx === 2 ? 'text-orange-400' : 'text-zinc-600'
-                    }`}>
+                  <span className={`w-5 text-center font-black text-xs shrink-0 ${
+                    idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-zinc-300' : idx === 2 ? 'text-orange-400' : 'text-zinc-600'
+                  }`}>
                     {idx + 1}
                   </span>
 
-                  {/* Bandera y Nombre */}
+                  {/* Bandera */}
                   <span className="text-base shrink-0">{team.flag}</span>
-                  <span className={`font-bold flex-1 min-w-0 truncate text-xs ${isClassified ? 'text-white' : 'text-zinc-400'}`}>
-                    {team.team}
+
+                  {/* Nombre */}
+                  <span className={`font-bold truncate text-xs ${isClassified ? 'text-white' : 'text-zinc-400'}`}>
+                    {getSpanishName(team.team)}
                   </span>
 
-                  {/* Estadísticas */}
-                  <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0 text-zinc-400">
-                    <span className="w-4 text-center">{team.played}</span>
-                    <span className="w-4 text-center">{team.won}</span>
-                    <span className="w-4 text-center">{team.drawn}</span>
-                    <span className="w-4 text-center">{team.lost}</span>
-                    <span className="w-4 text-center">{team.goalsFor}</span>
-                    <span className="w-4 text-center">{team.goalsAgainst}</span>
-                    <span className={`w-5 text-center font-bold ${team.goalDiff > 0 ? 'text-emerald-400' : team.goalDiff < 0 ? 'text-red-400' : 'text-zinc-400'}`}>
+                  {/* Estadísticas en grid interno */}
+                  <div className="grid grid-cols-8 gap-0 text-[11px] font-mono text-center" style={{ minWidth: 200 }}>
+                    <span className="text-zinc-400">{team.played}</span>
+                    <span className="text-zinc-400">{team.won}</span>
+                    <span className="text-zinc-400">{team.drawn}</span>
+                    <span className="text-zinc-400">{team.lost}</span>
+                    <span className="text-zinc-400">{team.goalsFor}</span>
+                    <span className="text-zinc-400">{team.goalsAgainst}</span>
+                    <span className={`font-bold ${team.goalDiff > 0 ? 'text-emerald-400' : team.goalDiff < 0 ? 'text-red-400' : 'text-zinc-400'}`}>
                       {team.goalDiff > 0 ? `+${team.goalDiff}` : team.goalDiff}
                     </span>
-                    <span className={`w-5 text-center font-extrabold ${idx === 0 ? 'text-amber-400' : idx < 3 ? 'text-white' : 'text-zinc-400'
-                      }`}>
+                    <span className={`font-extrabold text-sm ${idx === 0 ? 'text-amber-400' : idx < 3 ? 'text-white' : 'text-zinc-400'}`}>
                       {team.points}
                     </span>
                   </div>
@@ -390,31 +396,35 @@ interface KnockoutMatch {
 }
 
 const R32_MATCHES: KnockoutMatch[] = [
-  { id: 'M73', venue: 'Toronto',   slots: [{ code: '2A', label: '2° Grupo A' }, { code: '2B', label: '2° Grupo B' }] },
-  { id: 'M74', venue: 'Atlanta',   slots: [{ code: '1E', label: '1° Grupo E' }, { code: '3ABCDF', label: 'Mejor 3° (A,B,C,D,F)' }] },
-  { id: 'M75', venue: 'Vancouver', slots: [{ code: '1F', label: '1° Grupo F' }, { code: '2C', label: '2° Grupo C' }] },
-  { id: 'M76', venue: 'Los Ángeles', slots: [{ code: '1C', label: '1° Grupo C' }, { code: '2F', label: '2° Grupo F' }] },
-  { id: 'M77', venue: 'Nueva York/NJ', slots: [{ code: '1I', label: '1° Grupo I' }, { code: '3CDFGH', label: 'Mejor 3° (C,D,F,G,H)' }] },
-  { id: 'M78', venue: 'San Francisco', slots: [{ code: '2E', label: '2° Grupo E' }, { code: '2I', label: '2° Grupo I' }] },
+  // ── Quarter 1 (top-left): M73→M90, M75→M90; M74→M89, M77→M89 ──
+  { id: 'M73', venue: 'Toronto',         slots: [{ code: '2A', label: '2° Grupo A' }, { code: '2B', label: '2° Grupo B' }] },
+  { id: 'M75', venue: 'Vancouver',       slots: [{ code: '1F', label: '1° Grupo F' }, { code: '2C', label: '2° Grupo C' }] },
+  { id: 'M74', venue: 'Atlanta',         slots: [{ code: '1E', label: '1° Grupo E' }, { code: '3ABCDF', label: 'Mejor 3° (A,B,C,D,F)' }] },
+  { id: 'M77', venue: 'Nueva York/NJ',   slots: [{ code: '1I', label: '1° Grupo I' }, { code: '3CDFGH', label: 'Mejor 3° (C,D,F,G,H)' }] },
+  // ── Quarter 2 (bottom-left): M83→M93, M84→M93; M81→M94, M82→M94 ──
+  { id: 'M83', venue: 'Filadelfia',      slots: [{ code: '2K', label: '2° Grupo K' }, { code: '2L', label: '2° Grupo L' }] },
+  { id: 'M84', venue: 'Miami',           slots: [{ code: '1H', label: '1° Grupo H' }, { code: '2J', label: '2° Grupo J' }] },
+  { id: 'M81', venue: 'Dallas',          slots: [{ code: '1D', label: '1° Grupo D' }, { code: '3BEFIJ', label: 'Mejor 3° (B,E,F,I,J)' }] },
+  { id: 'M82', venue: 'Monterrey',       slots: [{ code: '1G', label: '1° Grupo G' }, { code: '3AEHIJ', label: 'Mejor 3° (A,E,H,I,J)' }] },
+  // ── Quarter 3 (top-right): M76→M91, M78→M91; M79→M92, M80→M92 ──
+  { id: 'M76', venue: 'Los Ángeles',    slots: [{ code: '1C', label: '1° Grupo C' }, { code: '2F', label: '2° Grupo F' }] },
+  { id: 'M78', venue: 'San Francisco',  slots: [{ code: '2E', label: '2° Grupo E' }, { code: '2I', label: '2° Grupo I' }] },
   { id: 'M79', venue: 'Ciudad de México', slots: [{ code: '1A', label: '1° Grupo A' }, { code: '3CEFHI', label: 'Mejor 3° (C,E,F,H,I)' }] },
-  { id: 'M80', venue: 'Boston',    slots: [{ code: '1L', label: '1° Grupo L' }, { code: '3EHIJK', label: 'Mejor 3° (E,H,I,J,K)' }] },
-  { id: 'M81', venue: 'Dallas',    slots: [{ code: '1D', label: '1° Grupo D' }, { code: '3BEFIJ', label: 'Mejor 3° (B,E,F,I,J)' }] },
-  { id: 'M82', venue: 'Monterrey', slots: [{ code: '1G', label: '1° Grupo G' }, { code: '3AEHIJ', label: 'Mejor 3° (A,E,H,I,J)' }] },
-  { id: 'M83', venue: 'Filadelfia', slots: [{ code: '2K', label: '2° Grupo K' }, { code: '2L', label: '2° Grupo L' }] },
-  { id: 'M84', venue: 'Miami',     slots: [{ code: '1H', label: '1° Grupo H' }, { code: '2J', label: '2° Grupo J' }] },
-  { id: 'M85', venue: 'Guadalajara', slots: [{ code: '1B', label: '1° Grupo B' }, { code: '3EFGIJ', label: 'Mejor 3° (E,F,G,I,J)' }] },
-  { id: 'M86', venue: 'Houston',   slots: [{ code: '1J', label: '1° Grupo J' }, { code: '2H', label: '2° Grupo H' }] },
-  { id: 'M87', venue: 'Kansas City', slots: [{ code: '1K', label: '1° Grupo K' }, { code: '3DEIJL', label: 'Mejor 3° (D,E,I,J,L)' }] },
-  { id: 'M88', venue: 'Seattle',   slots: [{ code: '2D', label: '2° Grupo D' }, { code: '2G', label: '2° Grupo G' }] },
+  { id: 'M80', venue: 'Boston',         slots: [{ code: '1L', label: '1° Grupo L' }, { code: '3EHIJK', label: 'Mejor 3° (E,H,I,J,K)' }] },
+  // ── Quarter 4 (bottom-right): M86→M95, M88→M95; M85→M96, M87→M96 ──
+  { id: 'M86', venue: 'Houston',        slots: [{ code: '1J', label: '1° Grupo J' }, { code: '2H', label: '2° Grupo H' }] },
+  { id: 'M88', venue: 'Seattle',        slots: [{ code: '2D', label: '2° Grupo D' }, { code: '2G', label: '2° Grupo G' }] },
+  { id: 'M85', venue: 'Guadalajara',    slots: [{ code: '1B', label: '1° Grupo B' }, { code: '3EFGIJ', label: 'Mejor 3° (E,F,G,I,J)' }] },
+  { id: 'M87', venue: 'Kansas City',    slots: [{ code: '1K', label: '1° Grupo K' }, { code: '3DEIJL', label: 'Mejor 3° (D,E,I,J,L)' }] },
 ];
 
 const R16_MATCHES: KnockoutMatch[] = [
-  { id: 'M89', venue: 'Atlanta',          slots: [{ code: 'W74', label: 'Ganador M74' }, { code: 'W77', label: 'Ganador M77' }] },
   { id: 'M90', venue: 'Toronto',          slots: [{ code: 'W73', label: 'Ganador M73' }, { code: 'W75', label: 'Ganador M75' }] },
-  { id: 'M91', venue: 'Los Ángeles',      slots: [{ code: 'W76', label: 'Ganador M76' }, { code: 'W78', label: 'Ganador M78' }] },
-  { id: 'M92', venue: 'Ciudad de México', slots: [{ code: 'W79', label: 'Ganador M79' }, { code: 'W80', label: 'Ganador M80' }] },
+  { id: 'M89', venue: 'Atlanta',          slots: [{ code: 'W74', label: 'Ganador M74' }, { code: 'W77', label: 'Ganador M77' }] },
   { id: 'M93', venue: 'Filadelfia',       slots: [{ code: 'W83', label: 'Ganador M83' }, { code: 'W84', label: 'Ganador M84' }] },
   { id: 'M94', venue: 'Dallas',           slots: [{ code: 'W81', label: 'Ganador M81' }, { code: 'W82', label: 'Ganador M82' }] },
+  { id: 'M91', venue: 'Los Ángeles',      slots: [{ code: 'W76', label: 'Ganador M76' }, { code: 'W78', label: 'Ganador M78' }] },
+  { id: 'M92', venue: 'Ciudad de México', slots: [{ code: 'W79', label: 'Ganador M79' }, { code: 'W80', label: 'Ganador M80' }] },
   { id: 'M95', venue: 'Houston',          slots: [{ code: 'W86', label: 'Ganador M86' }, { code: 'W88', label: 'Ganador M88' }] },
   { id: 'M96', venue: 'Kansas City',      slots: [{ code: 'W85', label: 'Ganador M85' }, { code: 'W87', label: 'Ganador M87' }] },
 ];
@@ -543,14 +553,65 @@ function fillRound(matches: KnockoutMatch[], groups: GroupStandings[], results: 
 }
 
 // ============================================================
-// Sub-componentes del bracket visual
+// Bracket en Árbol Clásico (CSS Grid con líneas conectoras)
 // ============================================================
 
-function BracketMatchCard({ match, isWinner, showVenue }: { match: FilledMatch; isWinner?: boolean; showVenue?: boolean }) {
-  const getBg = (team: TeamInfo | null, code: string) => {
-    if (team) return code.startsWith('3') ? 'border-orange-500/30 bg-orange-500/5' : 'border-emerald-500/30 bg-emerald-500/5';
-    return 'border-zinc-800 bg-zinc-900/20';
-  };
+interface BracketGridItem {
+  id: string;
+  type: 'match' | 'spacer';
+  match?: FilledMatch;
+  gridRowStart: number;
+  gridRowEnd: number;
+  roundLabel?: string;
+}
+
+function buildBracketGrid(r32: FilledMatch[], r16: FilledMatch[], qf: FilledMatch[], sf: FilledMatch[], final: FilledMatch[], third: FilledMatch[]): BracketGridItem[][] {
+  const columns: BracketGridItem[][] = [[], [], [], [], [], []];
+
+  // Ronda de 32 (col 0): 16 matches, each at rows [i*2, i*2+1]
+  r32.forEach((m, i) => {
+    columns[0].push({ id: m.id, type: 'match', match: m, gridRowStart: i * 2 + 1, gridRowEnd: i * 2 + 2 });
+  });
+
+  // Octavos (col 1): 8 matches, each at rows [4i+1, 4i+2]
+  r16.forEach((m, i) => {
+    const rowStart = i * 4 + 2;
+    columns[1].push({ id: m.id, type: 'match', match: m, gridRowStart: rowStart, gridRowEnd: rowStart });
+    // vertical connector spacer above
+    columns[1].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: i * 4 + 1, gridRowEnd: i * 4 + 1 });
+  });
+
+  // Cuartos (col 2): 4 matches, each at rows [8i+3, 8i+3]
+  qf.forEach((m, i) => {
+    const rowStart = i * 8 + 4;
+    columns[2].push({ id: m.id, type: 'match', match: m, gridRowStart: rowStart, gridRowEnd: rowStart });
+    columns[2].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: i * 8 + 3, gridRowEnd: i * 8 + 3 });
+  });
+
+  // Semifinal (col 3): 2 matches
+  sf.forEach((m, i) => {
+    const rowStart = i * 16 + 8;
+    columns[3].push({ id: m.id, type: 'match', match: m, gridRowStart: rowStart, gridRowEnd: rowStart });
+    columns[3].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: i * 16 + 7, gridRowEnd: i * 16 + 7 });
+  });
+
+  // Final (col 4): row 16
+  final.forEach((m) => {
+    columns[4].push({ id: m.id, type: 'match', match: m, gridRowStart: 16, gridRowEnd: 16 });
+    columns[4].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: 15, gridRowEnd: 15 });
+  });
+
+  // Third place (col 4): row 18
+  third.forEach((m) => {
+    columns[5].push({ id: m.id, type: 'match', match: m, gridRowStart: 18, gridRowEnd: 18 });
+    columns[5].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: 17, gridRowEnd: 17 });
+  });
+
+  return columns;
+}
+
+function BracketMatchCard({ match, col, row }: { match: FilledMatch; col: number; row: number }) {
+  const isThirdSlot = (slot: string) => slot.startsWith('3');
 
   const getTeamDisplay = (team: TeamInfo | null, slot: string, label: string) => {
     if (team) {
@@ -561,64 +622,81 @@ function BracketMatchCard({ match, isWinner, showVenue }: { match: FilledMatch; 
         </div>
       );
     }
-    const isThird = slot.startsWith('3');
     return (
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-lg shrink-0">🏳️</span>
         <div className="flex flex-col min-w-0">
-          <span className="text-xs text-zinc-500 font-medium truncate">Por definir</span>
-          <span className="text-[10px] text-zinc-600 truncate">{label}</span>
+          <span className="text-[10px] text-zinc-500 font-medium truncate">Por definir</span>
+          <span className="text-[9px] text-zinc-600 truncate">{label}</span>
         </div>
       </div>
     );
   };
 
+  const teamBg = (team: TeamInfo | null, slot: string) => {
+    if (team) return isThirdSlot(slot) ? 'border-orange-500/25 bg-orange-500/5' : 'border-emerald-500/25 bg-emerald-500/5';
+    return 'border-zinc-800 bg-zinc-900/20';
+  };
+
   return (
-    <div className={`relative rounded-xl border p-3 transition-all ${isWinner ? 'border-amber-500/40 bg-amber-500/5 shadow-sm shadow-amber-500/10' : 'border-zinc-800 bg-zinc-900/20'}`}>
-      {showVenue && (
-        <div className="flex items-center gap-1 mb-2 text-[10px] text-zinc-500">
-          <MapPin className="h-3 w-3" />
+    <div
+      className="relative group"
+      style={{ gridColumn: col + 1, gridRow: `${row} / span 1`, alignSelf: 'center' }}
+    >
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 shadow-sm">
+        <div className="flex items-center gap-1.5 mb-1 text-[9px] text-zinc-600">
+          <MapPin className="h-2.5 w-2.5" />
           <span className="truncate">{match.venue}</span>
+          <span className="ml-auto font-bold text-zinc-600">{match.id}</span>
         </div>
-      )}
-      <div className="space-y-1.5">
-        <div className={`rounded-lg px-2.5 py-1.5 border ${getBg(match.teamA, match.slotA)}`}>
+        <div className={`rounded-lg px-2 py-1.5 border ${teamBg(match.teamA, match.slotA)}`}>
           {getTeamDisplay(match.teamA, match.slotA, match.labelA)}
         </div>
-        <div className="flex items-center gap-1.5 px-1">
-          <div className="flex-1 h-px bg-zinc-700/50"></div>
-          <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">vs</span>
-          <div className="flex-1 h-px bg-zinc-700/50"></div>
+        <div className="flex items-center gap-1 px-1 my-0.5">
+          <div className="flex-1 h-px bg-zinc-700/40"></div>
+          <span className="text-[9px] font-bold text-zinc-600">VS</span>
+          <div className="flex-1 h-px bg-zinc-700/40"></div>
         </div>
-        <div className={`rounded-lg px-2.5 py-1.5 border ${getBg(match.teamB, match.slotB)}`}>
+        <div className={`rounded-lg px-2 py-1.5 border ${teamBg(match.teamB, match.slotB)}`}>
           {getTeamDisplay(match.teamB, match.slotB, match.labelB)}
         </div>
       </div>
-      <div className="mt-1.5 text-center">
-        <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-wider">{match.id}</span>
-      </div>
     </div>
   );
 }
 
-function BracketColumn({ title, matches, isWinner, showVenue }: { title: string; matches: FilledMatch[]; isWinner?: boolean; showVenue?: boolean }) {
-  return (
-    <div className="flex flex-col gap-3 min-w-[200px]">
-      <h4 className="text-sm font-bold text-zinc-300 mb-1 sticky left-0">{title}</h4>
-      {matches.map((m, i) => (
-        <BracketMatchCard key={m.id} match={m} isWinner={isWinner} showVenue={showVenue} />
-      ))}
-    </div>
-  );
-}
+function BracketConnectors() {
+  // Las líneas conectoras se dibujan con elementos posicionados absolutamente en el grid
+  const connectors: { col: number; row: number; height?: number; side: 'left' | 'right' }[] = [];
 
-// ============================================================
-// Componente principal de Llaves
-// ============================================================
+  // Conectores verticales entre R32 que alimentan un mismo R16
+  // Quarter 1: R32[0]+R32[1] → R16[0], R32[2]+R32[3] → R16[1]
+  // Quarter 2: R32[4]+R32[5] → R16[2], R32[6]+R32[7] → R16[3]
+  // ...y así sucesivamente
+  for (let q = 0; q < 4; q++) {
+    const baseIdx = q * 4;
+    // R16 match at row = q*8+2 (quarter: 0→row 2, 1→row 10, 2→row 18, 3→row 26)
+    // No, let me recalculate:
+    // Q0: R16[0] at row 2, R16[1] at row 6
+    // Q1: R16[2] at row 10, R16[3] at row 14
+    // Q2: R16[4] at row 18, R16[5] at row 22
+    // Q3: R16[6] at row 26, R16[7] at row 30
+    for (let p = 0; p < 2; p++) {
+      const r32RowA = (q * 4 + p * 2) * 2 + 1; // R32 match at this row
+      const r32RowB = (q * 4 + p * 2 + 1) * 2 + 1;
+      const r16Row = q * 8 + p * 4 + 2;
+      connectors.push({ col: 0, row: r32RowA, side: 'right' });
+      connectors.push({ col: 0, row: r32RowB, side: 'right' });
+      connectors.push({ col: 1, row: r16Row, side: 'left' });
+      // vertical line at col divider between R32 and R16, spanning from r32RowA to r32RowB
+    }
+  }
+
+  return null; // Placeholder - las líneas se dibujan con CSS
+}
 
 function BracketTab({ groups }: { groups: GroupStandings[] }) {
-  const results = new Map<string, string>(); // matchId -> winner team name
-
+  const results = new Map<string, string>();
   const r32 = fillRound(R32_MATCHES, groups, results);
   const r16 = fillRound(R16_MATCHES, groups, results);
   const qf = fillRound(QF_MATCHES, groups, results);
@@ -628,11 +706,9 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
 
   const totalTeams = groups.reduce((acc, g) => acc + g.teams.length, 0);
   const hasGroupData = totalTeams > 0;
-
   const groupsWithData = groups.filter(g => g.teams.some(t => t.played > 0));
   const isGroupStageComplete = groupsWithData.length === 12 && groups.every(g => g.teams.every(t => t.played >= 3));
 
-  // Obtener mejores terceros proyectados para el panel de información
   const allThirdPlaced = groups.map(g => ({
     team: g.teams[2],
     group: getGroupLetter(g.group),
@@ -644,12 +720,11 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
 
   return (
     <div className="space-y-8">
-      {/* Indicador de estado */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/20 p-4 flex items-start gap-3">
         <GitBranchPlus className="h-5 w-5 text-purple-400 shrink-0 mt-0.5" />
         <div>
           <h4 className="text-sm font-bold text-white">
-            {isGroupStageComplete ? '🏆 Fase de Grupos Completada' : '📊 Proyección Dinámica de Clasificados'}
+            {isGroupStageComplete ? '🏆 Fase de Grupos Completada' : '📊 Proyección Dinámica'}
           </h4>
           <p className="text-xs text-zinc-400 mt-1">
             {isGroupStageComplete
@@ -662,7 +737,7 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
       {!hasGroupData ? (
         <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center text-zinc-500">
           <GitBranchPlus className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No hay datos de fase de grupos. Haz clic en &quot;Actualizar&quot; para cargar los partidos.</p>
+          <p className="text-sm">No hay datos de fase de grupos. Haz clic en &quot;Actualizar&quot;.</p>
         </div>
       ) : (
         <>
@@ -692,74 +767,221 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
             </div>
           </div>
 
-          {/* Visualización del bracket en árbol clásico */}
-          <div className="overflow-x-auto pb-8">
-            <div className="flex gap-4" style={{ minWidth: '1100px' }}>
-              {/* Ronda de 32 */}
-              <BracketColumn title="Ronda de 32 (16)" matches={r32} showVenue />
+          {/* Bracket en árbol clásico con CSS Grid */}
+          <style>{`
+            .bracket-grid {
+              display: grid;
+              gap: 4px 16px;
+              position: relative;
+            }
+            .bracket-grid .round-header {
+              font-size: 11px;
+              font-weight: 700;
+              color: #a1a1aa;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              padding-bottom: 4px;
+              border-bottom: 1px solid rgba(113,113,122,0.15);
+              align-self: end;
+            }
+            .bracket-grid .round-header-0 { grid-column: 1; grid-row: 1; }
+            .bracket-grid .round-header-1 { grid-column: 2; grid-row: 1; }
+            .bracket-grid .round-header-2 { grid-column: 3; grid-row: 1; }
+            .bracket-grid .round-header-3 { grid-column: 4; grid-row: 1; }
+            .bracket-grid .round-header-4 { grid-column: 5; grid-row: 1; }
+            .bracket-grid .round-header-5 { grid-column: 6; grid-row: 1; }
 
-              {/* Octavos */}
-              <div className="flex flex-col gap-3 min-w-[200px]">
-                <h4 className="text-sm font-bold text-zinc-300 mb-1">Octavos (8)</h4>
-                {r16.map((m, i) => (
-                  <div key={m.id} className="relative">
-                    {/* Línea conectora desde R32 */}
-                    <div className="absolute -left-4 top-1/2 w-4 h-px border-t border-dashed border-zinc-700/40"></div>
-                    <BracketMatchCard match={m} showVenue />
-                  </div>
-                ))}
-              </div>
+            /* Líneas conectoras horizontales y verticales */
+            .bracket-line-h {
+              position: relative;
+              pointer-events: none;
+            }
+            .bracket-line-h::after {
+              content: '';
+              position: absolute;
+              background: rgba(113,113,122,0.25);
+            }
+            /* Conector horizontal desde una tarjeta hacia la derecha */
+            .bracket-conn-r {
+              position: relative;
+            }
+            .bracket-conn-r::after {
+              content: '';
+              position: absolute;
+              right: -16px;
+              top: 50%;
+              width: 16px;
+              height: 1px;
+              background: rgba(113,113,122,0.25);
+            }
+            /* Línea vertical que une dos R32 hacia un R16 */
+            .bracket-vline {
+              position: relative;
+            }
+            .bracket-vline::before {
+              content: '';
+              position: absolute;
+              right: -16px;
+              width: 1px;
+              background: rgba(113,113,122,0.25);
+            }
+            .bracket-vline-down::before {
+              top: 50%;
+              bottom: 0;
+            }
+            .bracket-vline-up::before {
+              top: 0;
+              bottom: 50%;
+            }
+          `}</style>
 
-              {/* Cuartos */}
-              <div className="flex flex-col gap-3 min-w-[200px]">
-                <h4 className="text-sm font-bold text-zinc-300 mb-1">Cuartos (4)</h4>
-                {qf.map((m, i) => (
-                  <div key={m.id} className="relative">
-                    <div className="absolute -left-4 top-1/2 w-4 h-px border-t border-dashed border-zinc-700/40"></div>
-                    <BracketMatchCard match={m} showVenue />
-                  </div>
-                ))}
-              </div>
+          <div className="overflow-x-auto pb-8 -mx-4 px-4">
+            <div className="bracket-grid" style={{
+              gridTemplateColumns: 'repeat(6, minmax(180px, 1fr))',
+              gridTemplateRows: 'auto repeat(32, minmax(0, auto))',
+            }}>
+              {/* Headers de cada ronda */}
+              <div className="round-header round-header-0">Ronda de 32</div>
+              <div className="round-header round-header-1">Octavos</div>
+              <div className="round-header round-header-2">Cuartos</div>
+              <div className="round-header round-header-3">Semifinal</div>
+              <div className="round-header round-header-4">Final</div>
+              <div className="round-header round-header-5">3er Lugar</div>
 
-              {/* Semifinales */}
-              <div className="flex flex-col gap-3 min-w-[200px]">
-                <h4 className="text-sm font-bold text-zinc-300 mb-1">Semifinal (2)</h4>
-                {sf.map((m, i) => (
-                  <div key={m.id} className="relative">
-                    <div className="absolute -left-4 top-1/2 w-4 h-px border-t border-dashed border-zinc-700/40"></div>
-                    <BracketMatchCard match={m} showVenue />
-                  </div>
-                ))}
-              </div>
+              {/* ── Ronda de 32 (col 1, filas 2-33) ── */}
+              {r32.map((m, i) => {
+                const row = i * 2 + 2;
+                return (
+                  <BracketMatchCard
+                    key={m.id}
+                    match={m}
+                    col={0}
+                    row={row}
+                  />
+                );
+              })}
 
-              {/* Final y Tercer Lugar */}
-              <div className="flex flex-col gap-3 min-w-[200px]">
-                <h4 className="text-sm font-bold text-zinc-300 mb-1">Final</h4>
-                {final.map((m, i) => (
-                  <div key={m.id} className="relative">
-                    <div className="absolute -left-4 top-1/2 w-4 h-px border-t border-dashed border-zinc-700/40"></div>
-                    <BracketMatchCard match={m} showVenue />
+              {/* ── Octavos (col 2, filas 2-33) ── */}
+              {r16.map((m, i) => {
+                // R16[i] se centra entre R32[2i] (row=4i+2) y R32[2i+1] (row=4i+4)
+                const row = i * 4 + 3;
+                return (
+                  <React.Fragment key={m.id}>
+                    {/* Tarjeta */}
+                    <BracketMatchCard match={m} col={1} row={row} />
+                    {/* Conectores verticales desde R32 hacia R16 */}
+                    <div style={{ gridColumn: 1, gridRow: `${i * 4 + 2} / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: 1, gridRow: `${i * 4 + 4} / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    {/* Línea vertical entre las dos R32 */}
+                    <div style={{ gridColumn: 1, gridRow: `${i * 4 + 2} / span 3`, justifySelf: 'end', width: 1, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    {/* Conector horizontal desde línea vertical hasta R16 */}
+                    <div style={{ gridColumn: '1 / 2', gridRow: `${row} / span 1`, justifySelf: 'end', alignSelf: 'center', position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+
+              {/* ── Cuartos (col 3) ── */}
+              {qf.map((m, i) => {
+                const row = i * 8 + 5;
+                return (
+                  <React.Fragment key={m.id}>
+                    <BracketMatchCard match={m} col={2} row={row} />
+                    {/* Conectores verticales desde R16 hacia QF */}
+                    <div style={{ gridColumn: 2, gridRow: `${i * 8 + 3} / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: 2, gridRow: `${i * 8 + 7} / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: 2, gridRow: `${i * 8 + 3} / span 5`, justifySelf: 'end', width: 1, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: '2 / 3', gridRow: `${row} / span 1`, justifySelf: 'end', alignSelf: 'center', position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+
+              {/* ── Semifinal (col 4) ── */}
+              {sf.map((m, i) => {
+                const row = i * 16 + 9;
+                return (
+                  <React.Fragment key={m.id}>
+                    <BracketMatchCard match={m} col={3} row={row} />
+                    <div style={{ gridColumn: 3, gridRow: `${i * 16 + 5} / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: 3, gridRow: `${i * 16 + 13} / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: 3, gridRow: `${i * 16 + 5} / span 9`, justifySelf: 'end', width: 1, position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                    <div style={{ gridColumn: '3 / 4', gridRow: `${row} / span 1`, justifySelf: 'end', alignSelf: 'center', position: 'relative' }}>
+                      <div style={{ position: 'absolute', right: 0, width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+
+              {/* ── Final (col 5, row 17) ── */}
+              {final.map((m) => (
+                <React.Fragment key={m.id}>
+                  <BracketMatchCard match={m} col={4} row={17} />
+                  {/* Conectores desde SF al Final */}
+                  <div style={{ gridColumn: 4, gridRow: `9 / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
                   </div>
-                ))}
-                <h4 className="text-sm font-bold text-zinc-500 mt-4 mb-1">3er Lugar</h4>
-                {third.map((m, i) => (
-                  <div key={m.id} className="relative">
-                    <div className="absolute -left-4 top-1/2 w-4 h-px border-t border-dashed border-zinc-700/40"></div>
-                    <BracketMatchCard match={m} showVenue />
+                  <div style={{ gridColumn: 4, gridRow: `25 / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
                   </div>
-                ))}
-              </div>
+                  <div style={{ gridColumn: 4, gridRow: `9 / span 17`, justifySelf: 'end', width: 1, position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(113,113,122,0.25)' }} />
+                  </div>
+                  <div style={{ gridColumn: '4 / 5', gridRow: `17 / span 1`, justifySelf: 'end', alignSelf: 'center', position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                  </div>
+                </React.Fragment>
+              ))}
+
+              {/* ── 3er Lugar (col 6, row 19) ── */}
+              {third.map((m) => (
+                <React.Fragment key={m.id}>
+                  <BracketMatchCard match={m} col={5} row={19} />
+                  <div style={{ gridColumn: 4, gridRow: `9 / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                  </div>
+                  <div style={{ gridColumn: 4, gridRow: `25 / span 1`, justifySelf: 'end', width: 16, position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, top: '50%', width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                  </div>
+                  <div style={{ gridColumn: 4, gridRow: `9 / span 17`, justifySelf: 'end', width: 1, position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, background: 'rgba(113,113,122,0.25)' }} />
+                  </div>
+                  <div style={{ gridColumn: '4 / 6', gridRow: `19 / span 1`, justifySelf: 'end', alignSelf: 'center', position: 'relative' }}>
+                    <div style={{ position: 'absolute', right: 0, width: 16, height: 1, background: 'rgba(113,113,122,0.25)' }} />
+                  </div>
+                </React.Fragment>
+              ))}
             </div>
           </div>
 
-          {/* Leyenda de origen de llaves */}
+          {/* Leyenda */}
           <details className="rounded-xl border border-zinc-800 bg-zinc-900/10">
             <summary className="px-5 py-3 text-sm font-bold text-zinc-300 cursor-pointer hover:text-white transition-colors">
               📖 Explicación de los emparejamientos
             </summary>
             <div className="px-5 pb-5 space-y-3 text-xs text-zinc-400">
               <p>El Mundial 2026 tiene <strong className="text-white">48 equipos</strong> divididos en <strong className="text-white">12 grupos de 4</strong>. Los <strong className="text-white">3 primeros</strong> de cada grupo (36 equipos) + los <strong className="text-white">8 mejores terceros</strong> clasifican a la Ronda de 32.</p>
-              <p>Los cruces de la Ronda de 32 están predefinidos por la FIFA según la siguiente estructura:</p>
+              <p>Los cruces de la Ronda de 32 están predefinidos por la FIFA:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {R32_MATCHES.map(m => (
                   <div key={m.id} className="flex items-center gap-2 bg-zinc-900/30 rounded-lg px-3 py-2 border border-zinc-800/50">
@@ -772,7 +994,6 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
                   </div>
                 ))}
               </div>
-              <p className="mt-2">Los <strong className="text-white">mejores terceros</strong> se asignan a cruces específicos según el grupo de origen, siguiendo el reglamento FIFA 2026. Las posiciones se ordenan por: puntos, diferencia de goles, goles a favor.</p>
             </div>
           </details>
         </>
