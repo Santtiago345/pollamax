@@ -232,10 +232,13 @@ export interface ProcessedMatch {
   teamB: string;
   teamAFlag: string;
   teamBFlag: string;
-  date: string; // ISO string
+  date: string;
   scoreA: number | null;
   scoreB: number | null;
+  scoreAHt: number | null;
+  scoreBHt: number | null;
   status: 'scheduled' | 'live' | 'finished';
+  minutes: number;
   group: string;
   round: string;
   ground: string;
@@ -261,6 +264,16 @@ export interface GroupStandings {
   teams: GroupTeamStats[];
 }
 
+export interface MatchChange {
+  matchId: string;
+  type: 'went_live' | 'halftime' | 'goal' | 'finished' | 'score_changed';
+  message: string;
+  teamA: string;
+  teamB: string;
+  scoreA: number | null;
+  scoreB: number | null;
+}
+
 // Parses el time string de openfootball (ej: "13:00 UTC-6") a un ISO string con fecha
 function parseMatchDateTime(date: string, time: string): string {
   try {
@@ -281,27 +294,40 @@ function parseMatchDateTime(date: string, time: string): string {
   }
 }
 
-// Determinar el estado del partido basado en la presencia del score y la fecha
 function determineStatus(match: OpenFootballMatch): 'scheduled' | 'live' | 'finished' {
   if (match.score?.ft) return 'finished';
-  
+
   const matchDate = new Date(parseMatchDateTime(match.date, match.time));
   const now = new Date();
-  
-  // Si la hora de inicio ya pasó pero no hay score, podría estar en vivo
-  if (now > matchDate && !match.score) {
-    const diffHours = (now.getTime() - matchDate.getTime()) / (1000 * 60 * 60);
-    if (diffHours < 3) return 'live'; // Asumimos que un partido dura máx 3 horas
-  }
-  
+  const diffMs = now.getTime() - matchDate.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+
+  // Si no ha empezado aún
+  if (diffMs < 0) return 'scheduled';
+
+  // Ya pasó la hora de inicio pero no hay resultado final
+  // Asumimos duración máxima de 3 horas (incluye alargue)
+  if (diffMins > 0 && diffMins < 210 && !match.score?.ft) return 'live';
+
   return 'scheduled';
 }
 
-// Procesar el array de partidos del JSON crudo
+function calcMatchMinutes(match: OpenFootballMatch): number {
+  if (match.score?.ft) return 0;
+  const matchDate = new Date(parseMatchDateTime(match.date, match.time));
+  const now = new Date();
+  const diffMs = now.getTime() - matchDate.getTime();
+  if (diffMs < 0) return 0;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins > 210) return 0;
+  return Math.min(mins, 210);
+}
+
 export function processMatches(rawMatches: OpenFootballMatch[]): ProcessedMatch[] {
-  return rawMatches.map((m, index) => {
+  return rawMatches.map((m) => {
     const dateISO = parseMatchDateTime(m.date, m.time);
     const status = determineStatus(m);
+    const minutes = calcMatchMinutes(m);
     const id = `wc2026_${m.team1.replace(/\s+/g, '_')}_${m.team2.replace(/\s+/g, '_')}_${m.date}`;
 
     return {
@@ -313,7 +339,10 @@ export function processMatches(rawMatches: OpenFootballMatch[]): ProcessedMatch[
       date: dateISO,
       scoreA: m.score?.ft ? m.score.ft[0] : null,
       scoreB: m.score?.ft ? m.score.ft[1] : null,
+      scoreAHt: m.score?.ht ? m.score.ht[0] : null,
+      scoreBHt: m.score?.ht ? m.score.ht[1] : null,
       status,
+      minutes,
       group: m.group ?? 'Knockout',
       round: m.round,
       ground: m.ground ?? '',
@@ -321,6 +350,59 @@ export function processMatches(rawMatches: OpenFootballMatch[]): ProcessedMatch[
       goals2: m.goals2,
     };
   });
+}
+
+export function detectMatchChanges(prev: ProcessedMatch[], current: ProcessedMatch[]): MatchChange[] {
+  const changes: MatchChange[] = [];
+  const prevMap = new Map(prev.map(m => [m.id, m]));
+
+  for (const cur of current) {
+    const prev = prevMap.get(cur.id);
+    if (!prev) continue;
+
+    if (prev.status !== 'finished' && cur.status === 'finished') {
+      changes.push({
+        matchId: cur.id,
+        type: 'finished',
+        message: `⚽ Finalizado: ${cur.teamA} ${cur.scoreA}-${cur.scoreB} ${cur.teamB}`,
+        teamA: cur.teamA, teamB: cur.teamB, scoreA: cur.scoreA, scoreB: cur.scoreB,
+      });
+      continue;
+    }
+
+    if (prev.status !== 'live' && cur.status === 'live') {
+      changes.push({
+        matchId: cur.id,
+        type: 'went_live',
+        message: `🔴 En vivo: ${cur.teamA} vs ${cur.teamB}`,
+        teamA: cur.teamA, teamB: cur.teamB, scoreA: cur.scoreA, scoreB: cur.scoreB,
+      });
+    }
+
+    if (cur.status === 'live' && prev.minutes < 46 && cur.minutes >= 46) {
+      changes.push({
+        matchId: cur.id,
+        type: 'halftime',
+        message: `⏸️ Descanso: ${cur.teamA} ${cur.scoreAHt ?? cur.scoreA ?? 0}-${cur.scoreBHt ?? cur.scoreB ?? 0} ${cur.teamB}`,
+        teamA: cur.teamA, teamB: cur.teamB, scoreA: cur.scoreA, scoreB: cur.scoreB,
+      });
+    }
+
+    if (cur.status === 'live' && prev.scoreA !== null && cur.scoreA !== null && cur.scoreB !== null && prev.scoreB !== null &&
+        (cur.scoreA > prev.scoreA || cur.scoreB > prev.scoreB)) {
+      const scorer = cur.scoreA > prev.scoreA ? cur.teamA : cur.teamB;
+      const lastGoal = (scorer === cur.teamA ? cur.goals1 : cur.goals2)?.slice(-1)[0];
+      const minuteStr = lastGoal?.minute ?? `${cur.minutes}'`;
+      changes.push({
+        matchId: cur.id,
+        type: 'goal',
+        message: `⚽ ¡GOL! ${getSpanishName(scorer)} (${minuteStr}) — ${cur.scoreA}-${cur.scoreB}`,
+        teamA: cur.teamA, teamB: cur.teamB, scoreA: cur.scoreA, scoreB: cur.scoreB,
+      });
+    }
+  }
+
+  return changes;
 }
 
 // Calcular las tablas de grupos desde los partidos procesados

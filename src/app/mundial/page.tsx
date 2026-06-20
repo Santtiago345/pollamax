@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchWorldCupData, processMatches, calculateGroupStandings, getSpanishName, type ProcessedMatch, type GroupStandings, type GroupTeamStats } from '@/lib/worldCupData';
-import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, CheckCircle2, Clock, Play, MapPin } from 'lucide-react';
+import { fetchWorldCupData, processMatches, calculateGroupStandings, detectMatchChanges, getSpanishName, type ProcessedMatch, type GroupStandings, type GroupTeamStats, type MatchChange } from '@/lib/worldCupData';
+import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, CheckCircle2, Clock, Play, MapPin, Bell } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 
 type TabId = 'today' | 'groups' | 'results' | 'bracket';
@@ -15,14 +16,38 @@ export default function MundialPage() {
   const [groups, setGroups] = useState<GroupStandings[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [events, setEvents] = useState<MatchChange[]>([]);
+  const [syncingMatch, setSyncingMatch] = useState(false);
+  const prevMatchesRef = useRef<ProcessedMatch[]>([]);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
       const raw = await fetchWorldCupData();
       if (raw) {
         const processed = processMatches(raw.matches);
         const standings = calculateGroupStandings(processed);
+
+        if (prevMatchesRef.current.length > 0) {
+          const changes = detectMatchChanges(prevMatchesRef.current, processed);
+          if (changes.length > 0) {
+            setEvents(prev => [...changes, ...prev].slice(0, 20));
+            const finished = changes.filter(c => c.type === 'finished');
+            if (finished.length > 0 && !syncingMatch) {
+              setSyncingMatch(true);
+              try {
+                const res = await fetch('/api/world-cup-sync');
+                const data = await res.json();
+                console.log('Auto-sync result:', data.message);
+              } catch (e) {
+                console.error('Sync error:', e);
+              } finally {
+                setSyncingMatch(false);
+              }
+            }
+          }
+        }
+
+        prevMatchesRef.current = processed;
         setMatches(processed);
         setGroups(standings);
         setLastSync(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
@@ -32,11 +57,23 @@ export default function MundialPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [syncingMatch]);
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, [loadData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEvents(prev => prev.filter((_, i) => i < 10));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Filtros por tab
   const today = new Date();
@@ -117,6 +154,44 @@ export default function MundialPage() {
         ))}
       </div>
 
+      {/* Eventos en vivo (notificaciones de goles, finales, etc.) */}
+      <AnimatePresence>
+        {events.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-1.5 max-h-[160px] overflow-y-auto rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-400 mb-1">
+                <Bell className="h-3.5 w-3.5 animate-pulse" />
+                Eventos en vivo
+              </div>
+              <AnimatePresence initial={false}>
+                {events.map((ev, i) => (
+                  <motion.div
+                    key={`${ev.matchId}-${ev.type}-${i}`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`text-xs py-1 px-2 rounded-lg ${
+                      ev.type === 'goal' ? 'bg-red-500/10 text-red-300 font-semibold' :
+                      ev.type === 'finished' ? 'bg-emerald-500/10 text-emerald-300 font-semibold' :
+                      ev.type === 'went_live' ? 'bg-red-500/5 text-red-400' :
+                      'bg-amber-500/10 text-amber-300'
+                    }`}
+                  >
+                    {ev.message}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Contenido de los Tabs */}
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
@@ -160,47 +235,75 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
   const matchDate = new Date(match.date);
   const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
   const dateStr = matchDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-  const now = new Date();
-  const minutesElapsed = Math.max(0, Math.floor((now.getTime() - matchDate.getTime()) / 60000));
-  const isHalfTime = minutesElapsed >= 46 && minutesElapsed <= 60;
+  const isHalfTime = match.status === 'live' && match.minutes >= 46 && match.minutes <= 60;
+  const isExtraTime = match.status === 'live' && match.minutes > 90;
 
   return (
-    <div className={`rounded-xl border px-4 py-3.5 flex items-center justify-between gap-4 transition-all hover:border-zinc-700/60 ${match.status === 'live'
-        ? 'border-red-500/30 bg-red-500/5'
-        : match.status === 'finished'
-          ? 'border-zinc-800/50 bg-zinc-900/20'
-          : 'border-zinc-800/80 bg-zinc-900/10'
-      }`}>
+    <motion.div
+      layout
+      className={`rounded-xl border px-4 py-3.5 flex items-center justify-between gap-4 transition-all hover:border-zinc-700/60 ${
+        match.status === 'live'
+          ? 'border-red-500/30 bg-red-500/5'
+          : match.status === 'finished'
+            ? 'border-zinc-800/50 bg-zinc-900/20'
+            : 'border-zinc-800/80 bg-zinc-900/10'
+      }`}
+    >
       {/* Equipo A */}
       <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-          <span className="font-bold text-sm text-white truncate text-right">{getSpanishName(match.teamA)}</span>
+        <span className="font-bold text-sm text-white truncate text-right">{getSpanishName(match.teamA)}</span>
         <span className="text-2xl shrink-0">{match.teamAFlag}</span>
       </div>
 
       {/* Centro: Marcador o Hora */}
       <div className="text-center shrink-0 min-w-[90px]">
         {match.status === 'finished' ? (
-          <div className="flex items-center gap-2 justify-center">
+          <motion.div
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            className="flex items-center gap-2 justify-center"
+          >
             <span className="text-xl font-black text-white">{match.scoreA}</span>
             <span className="text-zinc-600 font-bold">-</span>
             <span className="text-xl font-black text-white">{match.scoreB}</span>
-          </div>
+          </motion.div>
         ) : match.status === 'live' ? (
           <div className="flex flex-col items-center gap-0.5">
             <div className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></span>
-              <span className="text-xs font-bold text-red-400 uppercase tracking-wider">En Vivo</span>
+              <span className="text-xs font-bold text-red-400 uppercase tracking-wider">
+                {isHalfTime ? 'Descanso' : isExtraTime ? 'T.E.' : 'En Vivo'}
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-white">{match.scoreA ?? 0}</span>
+              <motion.span
+                key={`${match.id}-a-${match.scoreA}`}
+                initial={{ scale: 1.4, color: '#fbbf24' }}
+                animate={{ scale: 1, color: '#ffffff' }}
+                transition={{ duration: 0.5 }}
+                className="text-lg font-black text-white"
+              >
+                {match.scoreA ?? 0}
+              </motion.span>
               <span className="text-zinc-600">-</span>
-              <span className="text-lg font-black text-white">{match.scoreB ?? 0}</span>
+              <motion.span
+                key={`${match.id}-b-${match.scoreB}`}
+                initial={{ scale: 1.4, color: '#fbbf24' }}
+                animate={{ scale: 1, color: '#ffffff' }}
+                transition={{ duration: 0.5 }}
+                className="text-lg font-black text-white"
+              >
+                {match.scoreB ?? 0}
+              </motion.span>
             </div>
-            <div className="mt-1 text-xs text-zinc-300">
-              {isHalfTime ? (
-                <span className="text-sm font-bold text-zinc-300">Descanso</span>
-              ) : (
-                <span className="text-sm font-bold text-red-300">{minutesElapsed}'</span>
+            <div className="mt-0.5 text-xs text-zinc-300">
+              {!isHalfTime && (
+                <span className="text-sm font-bold text-red-300">{match.minutes}'</span>
+              )}
+              {isHalfTime && match.scoreAHt !== null && (
+                <span className="text-xs text-zinc-400">
+                  Descanso: {match.scoreAHt}-{match.scoreBHt}
+                </span>
               )}
             </div>
           </div>
@@ -220,9 +323,9 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
       {/* Equipo B */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span className="text-2xl shrink-0">{match.teamBFlag}</span>
-          <span className="font-bold text-sm text-white truncate">{getSpanishName(match.teamB)}</span>
+        <span className="font-bold text-sm text-white truncate">{getSpanishName(match.teamB)}</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
