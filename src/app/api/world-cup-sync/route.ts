@@ -3,9 +3,6 @@ import { collection, doc, writeBatch, getDocs, query, where, getDoc, setDoc, inc
 import { db } from '@/lib/firebase';
 import { fetchWorldCupData, processMatches, calculateGroupStandings } from '@/lib/worldCupData';
 import { calculatePoints } from '@/lib/rules';
-import { adminDb } from '@/lib/firebaseAdmin';
-
-const batch = adminDb.batch();
 
 export const dynamic = 'force-dynamic';
 
