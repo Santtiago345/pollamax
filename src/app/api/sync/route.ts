@@ -2,9 +2,6 @@ import { NextResponse } from 'next/server';
 import { collection, getDocs, query, where, writeBatch, doc, getDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { calculatePoints } from '@/lib/rules';
-import { adminDb } from '@/lib/firebaseAdmin';
-
-const batch = adminDb.batch();
 
 export const dynamic = 'force-dynamic';
 
