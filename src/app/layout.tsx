@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { Navbar } from '@/components/Navbar';
+import AnimatedLayout from '@/components/AnimatedLayout';
 import { Analytics } from "@vercel/analytics/next"
 
 const geistSans = Geist({
@@ -34,7 +35,9 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <main className="flex-1 w-full relative z-10">
-            {children}
+            <AnimatedLayout>
+              {children}
+            </AnimatedLayout>
           </main>
           <footer className="py-6 border-t border-zinc-900 bg-black text-center text-xs text-zinc-500">
             &copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia Cocunubo-Neuta mundialista.

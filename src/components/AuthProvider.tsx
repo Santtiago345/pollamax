@@ -25,6 +25,8 @@ interface UserProfile {
     thirdPlace: string;
     submittedAt: string;
   };
+  photoURL?: string;
+  country?: string;
 }
 
 interface AuthContextType {
@@ -61,6 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: firebaseUser.email || '',
               points: 0,
               isAdmin: false,
+              photoURL: firebaseUser.photoURL || '',
+              country: '',
             };
             await setDoc(userRef, newProfile);
             setProfile(newProfile);

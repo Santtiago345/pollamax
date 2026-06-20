@@ -34,6 +34,7 @@ interface MatchCardProps {
   userBet: Bet | undefined;
   userId: string;
   userName: string;
+  userPhoto?: string | null;
 }
 
 export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, userName }) => {
@@ -90,11 +91,12 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
       // Guardar apuesta
       await setDoc(betRef, newBet);
 
-      // Crear entrada en el historial de actividad
+      // Crear entrada en el historial de actividad con avatar si existe
       const historyRef = collection(db, 'history');
       await addDoc(historyRef, {
         userId,
         userName,
+        userPhoto: userPhoto || null,
         message: `${userName} apostó ${goalA}-${goalB} en ${match.teamA} vs ${match.teamB}`,
         timestamp: new Date().toISOString(),
       });

@@ -168,6 +168,7 @@ export default function MatchesPage() {
                     userBet={bets[match.id]}
                     userId={user.uid}
                     userName={profile.name}
+                    userPhoto={profile.photoURL}
                   />
                 ))}
               </div>

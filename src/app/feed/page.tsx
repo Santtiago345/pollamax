@@ -9,12 +9,14 @@ interface HistoryEntry {
   id: string;
   userId: string;
   userName: string;
+  userPhoto?: string | null;
   message: string;
   timestamp: string;
 }
 
 export default function FeedPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [users, setUsers] = useState<Array<{ uid: string; name: string; photoURL?: string; points?: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,6 +44,18 @@ export default function FeedPage() {
     );
 
     return () => unsubscribe();
+  }, []);
+
+  // Obtener lista de usuarios registrados para mostrar en el encabezado del feed
+  useEffect(() => {
+    const q = query(collection(db, 'users'), orderBy('points', 'desc'));
+    const unsubscribeUsers = onSnapshot(q, (snap) => {
+      const list: any[] = [];
+      snap.forEach((d) => list.push({ uid: d.id, ...d.data() }));
+      setUsers(list);
+    }, (err) => console.error('Error fetching users for feed:', err));
+
+    return () => unsubscribeUsers();
   }, []);
 
   // Función para formatear el tiempo transcurrido (hace X minutos)
@@ -100,6 +114,18 @@ export default function FeedPage() {
           </p>
         </div>
       ) : (
+        <>
+        <div className="flex items-center gap-3 overflow-x-auto pb-4">
+          {users.map((u) => (
+            <div key={u.uid} className="flex items-center gap-2 px-2">
+              <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+                {u.photoURL ? <img src={u.photoURL} alt={u.name} className="h-full w-full object-cover" /> : <span className="text-xs text-zinc-400">{u.name.slice(0,2).toUpperCase()}</span>}
+              </div>
+              <div className="text-xs text-zinc-300 font-semibold">{u.name.split(' ')[0]}</div>
+            </div>
+          ))}
+        </div>
+
         <div className="relative pl-6 border-l border-zinc-800 space-y-6">
           {history.map((entry) => (
             <div key={entry.id} className="relative group">
@@ -111,9 +137,19 @@ export default function FeedPage() {
               {/* Contenedor del Mensaje */}
               <div className="rounded-xl border border-zinc-900 bg-zinc-900/20 p-4 transition-all hover:bg-zinc-900/35 hover:border-zinc-800">
                 <div className="flex justify-between items-start gap-4">
-                  <p className="text-sm text-zinc-200 leading-relaxed font-medium">
-                    {entry.message}
-                  </p>
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
+                      {entry.userPhoto ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={entry.userPhoto} alt={entry.userName} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-zinc-400">{entry.userName?.slice(0,2).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-zinc-200 leading-relaxed font-medium">
+                      {entry.message}
+                    </p>
+                  </div>
                   
                   <span className="flex items-center gap-1 text-[10px] text-zinc-500 whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900 font-semibold">
                     <Clock className="h-3 w-3" />
@@ -124,6 +160,7 @@ export default function FeedPage() {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );

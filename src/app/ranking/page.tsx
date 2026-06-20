@@ -33,7 +33,7 @@ export default function RankingPage() {
       (snapshot) => {
         const usersList: UserProfile[] = [];
         snapshot.forEach((doc) => {
-          usersList.push(doc.data() as UserProfile);
+          usersList.push({ uid: doc.id, ...(doc.data() as any) } as UserProfile);
         });
         setUsers(usersList);
         setLoading(false);
@@ -173,6 +173,14 @@ export default function RankingPage() {
                         {/* Nombre del jugador */}
                         <td className="px-6 py-4 font-semibold text-white">
                           <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
+                              {profileItem.photoURL ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={profileItem.photoURL} alt={profileItem.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <span className="text-xs text-zinc-400">{profileItem.name.slice(0,2).toUpperCase()}</span>
+                              )}
+                            </div>
                             <span>{profileItem.name}</span>
                             {isCurrentUser && (
                               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">

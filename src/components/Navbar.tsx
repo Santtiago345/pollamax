@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
@@ -50,17 +51,23 @@ export const Navbar: React.FC = () => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href;
                 return (
-                  <Link
+                  <motion.div
                     key={link.href}
-                    href={link.href}
-                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${isActive
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="rounded-xl"
+                  >
+                    <Link
+                      href={link.href}
+                      className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${isActive
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50'
                       }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {link.label}
-                  </Link>
+                    >
+                      <Icon className="h-4 w-4" />
+                      {link.label}
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>
@@ -75,13 +82,15 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
 
-            <button
+            <motion.button
               onClick={logout}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:text-white hover:bg-zinc-950 transition-all active:scale-95"
               title="Cerrar sesión"
             >
               <LogOut className="h-5 w-5" />
-            </button>
+            </motion.button>
           </div>
 
           {/* Botón menú móvil */}
@@ -93,12 +102,14 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
 
-            <button
+            <motion.button
               onClick={toggleMobileMenu}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -125,16 +136,18 @@ export const Navbar: React.FC = () => {
                 </Link>
               );
             })}
-            <button
+            <motion.button
               onClick={() => {
                 closeMobileMenu();
                 logout();
               }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
             >
               <LogOut className="h-5 w-5" />
               Cerrar Sesión
-            </button>
+            </motion.button>
           </div>
         </div>
       )}
