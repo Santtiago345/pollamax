@@ -129,47 +129,44 @@ export default function FeedPage() {
 
         <div className="relative pl-6 border-l border-zinc-800 space-y-6">
           <AnimatePresence>
-          {history.map((entry) => (
-            <motion.div
-              key={entry.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.28 }}
-              className="relative group"
-            >
-              {/* Círculo indicador del feed */}
-              <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 border-2 border-zinc-800 group-hover:border-emerald-500 transition-colors">
-                <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 group-hover:bg-emerald-400 transition-colors"></span>
-              </span>
+            {history.map((entry) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.28 }}
+                className="relative group"
+              >
+                {/* Círculo indicador del feed */}
+                <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-950 border-2 border-zinc-800 group-hover:border-emerald-500 transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 group-hover:bg-emerald-400 transition-colors"></span>
+                </span>
 
-              {/* Contenedor del Mensaje */}
-              <div className="rounded-xl border border-zinc-900 bg-zinc-900/20 p-4 transition-all hover:bg-zinc-900/35 hover:border-zinc-800">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
-                      {entry.userPhoto ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={entry.userPhoto} alt={entry.userName} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-zinc-400">{entry.userName?.slice(0,2).toUpperCase()}</span>
-                      )}
+                {/* Contenedor del Mensaje */}
+                <div className="rounded-xl border border-zinc-900 bg-zinc-900/20 p-4 transition-all hover:bg-zinc-900/35 hover:border-zinc-800">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
+                        {entry.userPhoto ? (
+                          <img src={entry.userPhoto} alt={entry.userName} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-zinc-400">{entry.userName?.slice(0,2).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-200 leading-relaxed font-medium">
+                        {entry.message}
+                      </p>
                     </div>
-                    <p className="text-sm text-zinc-200 leading-relaxed font-medium">
-                      {entry.message}
-                    </p>
+                    <span className="flex items-center gap-1 text-[10px] text-zinc-500 whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900 font-semibold">
+                      <Clock className="h-3 w-3" />
+                      {formatTimeAgo(entry.timestamp)}
+                    </span>
                   </div>
-                  
-                  <span className="flex items-center gap-1 text-[10px] text-zinc-500 whitespace-nowrap bg-zinc-950 px-2 py-0.5 rounded-full border border-zinc-900 font-semibold">
-                    <Clock className="h-3 w-3" />
-                    {formatTimeAgo(entry.timestamp)}
-                  </span>
                 </div>
               </motion.div>
             ))}
-            </AnimatePresence>
-            </div>
-          ))}
+          </AnimatePresence>
         </div>
         </>
       )}

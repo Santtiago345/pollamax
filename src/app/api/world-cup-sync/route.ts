@@ -3,6 +3,9 @@ import { collection, doc, writeBatch, getDocs, query, where, getDoc, setDoc, inc
 import { db } from '@/lib/firebase';
 import { fetchWorldCupData, processMatches, calculateGroupStandings } from '@/lib/worldCupData';
 import { calculatePoints } from '@/lib/rules';
+import { adminDb } from '@/lib/firebaseAdmin';
+
+const batch = adminDb.batch();
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +79,7 @@ export async function GET() {
           );
           const betsSnapshot = await getDocs(betsQuery);
 
-          betsSnapshot.forEach((betDoc) => {
+          for (const betDoc of betsSnapshot.docs) {
             const bet = betDoc.data();
             const pointsEarned = calculatePoints(bet.predA, bet.predB, match.scoreA!, match.scoreB!);
             // Determinar tipo de acierto para rachas
@@ -122,7 +125,7 @@ export async function GET() {
               timestamp: new Date().toISOString(),
             });
             pointsAwarded++;
-          });
+          }
 
           // Resetear rachas de usuarios que no participaron en este partido
           const bettors = new Set(betsSnapshot.docs.map((d) => d.data().userId));

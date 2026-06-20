@@ -185,7 +185,7 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
             <span className="text-zinc-600 font-bold">-</span>
             <span className="text-xl font-black text-white">{match.scoreB}</span>
           </div>
-        {match.status === 'live' ? (
+        ) : match.status === 'live' ? (
           <div className="flex flex-col items-center gap-0.5">
             <div className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></span>
