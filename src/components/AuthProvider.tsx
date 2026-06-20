@@ -53,7 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Enlazar datos del perfil del usuario de Firestore en tiempo real
         const userRef = doc(db, 'users', firebaseUser.uid);
         
-        const unsubscribeProfile = onSnapshot(userRef, async (docSnap) => {
+        const unsubscribeProfile = onSnapshot(userRef,
+          async (docSnap) => {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
@@ -84,6 +85,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             setProfile(newProfile);
           }
+          setLoading(false);
+        },
+        (error) => {
+          console.error('Error reading user profile:', error);
+          setProfile(null);
           setLoading(false);
         });
 
