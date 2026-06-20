@@ -168,3 +168,20 @@ Vercel aloja aplicaciones Next.js de manera gratuita con soporte nativo para Ser
 - **Cargar partidos rápidamente:** Al ingresar al panel de administración por primera vez, haz clic en **"Precargar partidos de prueba"** en la esquina superior derecha. Esto creará automáticamente 5 partidos del Mundial con fechas futuras para que tú y tu familia puedan probar el sistema de inmediato.
 - **Puntuación automática:** Cuando finalice un partido real, entra al panel de administración, escribe el marcador definitivo y haz clic en **"Finalizar"**. El sistema recalculará instantáneamente las apuestas de todos los jugadores activos y les sumará los puntos correspondientes a sus tablas en milisegundos.
 - **Predicciones del Podio:** Invita a tu familia a seleccionar su Campeón, Subcampeón y Tercer Puesto antes del inicio del torneo en la pestaña **"Podio"**. Una vez que se juegue el primer partido del torneo, estas selecciones se bloquearán automáticamente para todos.
+
+---
+
+## 🆕 Novedades (2026-06-20)
+
+- Se agregó animación visual para las `rachas` de usuarios (`StreakBadge`) usando `framer-motion`.
+- La pestaña `Mundial` ahora incluye una vista conceptual de llaves (Ronda de 32 → Octavos → Cuartos → Semifinal → Final) y muestra minutos en partidos en vivo con detección de medio tiempo.
+
+Estas mejoras están diseñadas para ser ligeras y compatibles con la lógica existente en Firestore.
+
+---
+
+## Contribuir y Despliegue Rápido
+
+- Para desarrollo local: `npm install` y `npm run dev`.
+- Asegúrate de definir las variables de entorno en `.env.local` antes de ejecutar localmente o desplegar en Vercel.
+

@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trophy, RefreshCw, Star, Medal, HelpCircle, Flame } from 'lucide-react';
+import { Trophy, RefreshCw, Star, Medal, HelpCircle } from 'lucide-react';
+import StreakBadge from '@/components/StreakBadge';
 import { getFlagByCountryName } from '@/lib/countries';
 
 interface UserProfile {
@@ -184,11 +185,9 @@ export default function RankingPage() {
                               )}
                             </div>
                             <span>{profileItem.name}</span>
-                            {profileItem.streak && profileItem.streak.type && (
-                              <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                style={{ background: profileItem.streak.type === 'exact' ? 'rgba(34,197,94,0.08)' : 'rgba(255,69,58,0.06)', color: profileItem.streak.type === 'exact' ? '#34d399' : '#ff4538' }}>
-                                <Flame className="h-3 w-3" />
-                                {profileItem.streak.type === 'exact' ? `Racha E: ${profileItem.streak.count}` : `Racha G: ${profileItem.streak.count}`}
+                            {profileItem.streak && (
+                              <span className="ml-2">
+                                <StreakBadge type={profileItem.streak.type} count={profileItem.streak.count} />
                               </span>
                             )}
                             {isCurrentUser && (

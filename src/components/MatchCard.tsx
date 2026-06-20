@@ -5,6 +5,7 @@ import { doc, setDoc, addDoc, collection, getDocs, query, where, getDoc } from '
 import { db } from '@/lib/firebase';
 import { isBetLocked, calculatePoints } from '@/lib/rules';
 import { Lock, Unlock, Check, RefreshCw, AlertCircle } from 'lucide-react';
+import StreakBadge from '@/components/StreakBadge';
 
 interface Match {
   id: string;
@@ -361,10 +362,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
                     </div>
                     <div className="text-sm text-zinc-300">Pronóstico: <strong className="text-white">{entry.bet.predA}-{entry.bet.predB}</strong></div>
                     <div className="text-xs mt-1">
-                      {entry.user.streak && entry.user.streak.type ? (
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${entry.user.streak.type === 'exact' ? 'text-emerald-300 bg-emerald-500/6' : 'text-red-300 bg-red-500/6'}`}>
-                          {entry.user.streak.type === 'exact' ? `Racha Marcadores x${entry.user.streak.count}` : `Racha Ganadores x${entry.user.streak.count}`}
-                        </span>
+                      {entry.user.streak ? (
+                        <StreakBadge type={entry.user.streak.type} count={entry.user.streak.count} />
                       ) : (
                         <span className="text-zinc-500 text-[11px]">Sin racha</span>
                       )}

@@ -160,6 +160,9 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
   const matchDate = new Date(match.date);
   const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
   const dateStr = matchDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  const now = new Date();
+  const minutesElapsed = Math.max(0, Math.floor((now.getTime() - matchDate.getTime()) / 60000));
+  const isHalfTime = minutesElapsed >= 46 && minutesElapsed <= 60;
 
   return (
     <div className={`rounded-xl border px-4 py-3.5 flex items-center justify-between gap-4 transition-all hover:border-zinc-700/60 ${match.status === 'live'
@@ -182,7 +185,7 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
             <span className="text-zinc-600 font-bold">-</span>
             <span className="text-xl font-black text-white">{match.scoreB}</span>
           </div>
-        ) : match.status === 'live' ? (
+        {match.status === 'live' ? (
           <div className="flex flex-col items-center gap-0.5">
             <div className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></span>
@@ -192,6 +195,13 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
               <span className="text-lg font-black text-white">{match.scoreA ?? 0}</span>
               <span className="text-zinc-600">-</span>
               <span className="text-lg font-black text-white">{match.scoreB ?? 0}</span>
+            </div>
+            <div className="mt-1 text-xs text-zinc-300">
+              {isHalfTime ? (
+                <span className="text-sm font-bold text-zinc-300">Descanso</span>
+              ) : (
+                <span className="text-sm font-bold text-red-300">{minutesElapsed}'</span>
+              )}
             </div>
           </div>
         ) : (
@@ -271,7 +281,7 @@ function GroupsTab({ groups }: { groups: GroupStandings[] }) {
         <div key={group.group} className="rounded-2xl border border-zinc-800 bg-zinc-900/20 overflow-hidden shadow">
           {/* Header del Grupo */}
           <div className="px-4 py-3 bg-emerald-500/8 border-b border-zinc-800/70 flex justify-between items-center">
-            <h3 className="font-black text-emerald-400 text-sm tracking-wider uppercase">{group.group}</h3>
+            <h3 className="font-black text-emerald-400 text-sm tracking-wider uppercase">{group.group.replace('Group ', 'Grupo ')}</h3>
             <span className="text-[10px] text-zinc-500 font-semibold uppercase">PJ PG PE PP GF GC DG Pts</span>
           </div>
 
@@ -397,46 +407,78 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
         </div>
       </div>
 
-      {/* Proyección de Clasificados por Grupo */}
-      {groups.length > 0 ? (
-        <div className="space-y-4">
-          <h2 className="text-lg font-black text-white border-b border-zinc-800/60 pb-2">Proyección de Clasificados a Ronda de 32</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {groups.map(group => {
-              const top3 = group.teams.slice(0, 3);
-              return (
-                <div key={group.group} className="rounded-xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
-                  <div className="px-4 py-2.5 bg-purple-500/8 border-b border-zinc-800/70">
-                    <h3 className="font-black text-purple-400 text-sm">{group.group}</h3>
+      {/* Visualización conceptual de llaves (bracket) */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-black text-white border-b border-zinc-800/60 pb-2">Llaves del Torneo (Proyección)</h2>
+        <div className="overflow-x-auto">
+          <div className="flex gap-6 py-4">
+            {/* Ronda de 32 - Columna 1 */}
+            <div className="flex flex-col gap-3 min-w-[220px]">
+              <h4 className="text-sm font-bold text-zinc-300 mb-2">Ronda de 32</h4>
+              {(function buildR32() {
+                const slots: any[] = [];
+                // Tomar top3 de cada grupo secuencialmente para llenar los primeros slots
+                groups.forEach(g => {
+                  const t = g.teams[0];
+                  slots.push({ team: t?.team || '---', flag: t?.flag || '🏳️' });
+                  const t2 = g.teams[1];
+                  slots.push({ team: t2?.team || '---', flag: t2?.flag || '🏳️' });
+                });
+                // Asegurar al menos 32 slots llenando con placeholders
+                while (slots.length < 32) slots.push({ team: 'TBD', flag: '🏳️' });
+                return slots.slice(0, 32).map((s, i) => (
+                  <div key={`r32-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/20 border border-zinc-800">
+                    <div className="text-xl">{s.flag}</div>
+                    <div className="flex-1 text-sm font-semibold truncate">{s.team}</div>
                   </div>
-                  <div className="divide-y divide-zinc-900/50">
-                    {top3.map((team, idx) => (
-                      <div key={team.team} className="flex items-center gap-3 px-4 py-2.5">
-                        <span className={`text-xs font-black w-4 ${idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-zinc-300' : 'text-orange-400'
-                          }`}>{idx + 1}°</span>
-                        <span className="text-xl">{team.flag}</span>
-                        <span className="text-sm font-bold text-white truncate flex-1">{team.team}</span>
-                        <span className={`text-sm font-extrabold ${idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-zinc-300' : 'text-orange-400'
-                          }`}>{team.points} pts</span>
-                      </div>
-                    ))}
-                    {top3.length < 3 && (
-                      <div className="px-4 py-2.5 text-xs text-zinc-600 italic">
-                        Posiciones pendientes de definir...
-                      </div>
-                    )}
-                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Octavos */}
+            <div className="flex flex-col gap-3 min-w-[220px]">
+              <h4 className="text-sm font-bold text-zinc-300 mb-2">Octavos</h4>
+              {Array.from({ length: 16 }).map((_, i) => (
+                <div key={`r16-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/10 border border-zinc-800">
+                  <div className="h-6 w-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs">{i+1}</div>
+                  <div className="flex-1 text-sm text-zinc-400">Ganador Partido {i+1}</div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Cuartos */}
+            <div className="flex flex-col gap-3 min-w-[220px]">
+              <h4 className="text-sm font-bold text-zinc-300 mb-2">Cuartos</h4>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={`qf-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/10 border border-zinc-800">
+                  <div className="h-6 w-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs">{i+1}</div>
+                  <div className="flex-1 text-sm text-zinc-400">Ganador Octavos {i+1}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Semis */}
+            <div className="flex flex-col gap-3 min-w-[220px]">
+              <h4 className="text-sm font-bold text-zinc-300 mb-2">Semifinal</h4>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={`sf-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/10 border border-zinc-800">
+                  <div className="h-6 w-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs">{i+1}</div>
+                  <div className="flex-1 text-sm text-zinc-400">Ganador Cuartos {i+1}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Final */}
+            <div className="flex flex-col gap-3 min-w-[220px]">
+              <h4 className="text-sm font-bold text-zinc-300 mb-2">Final</h4>
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/20 border border-zinc-800">
+                <div className="text-xl">🏆</div>
+                <div className="flex-1 text-sm font-semibold">Campeón (Proyección)</div>
+              </div>
+            </div>
           </div>
         </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center text-zinc-500">
-          <GitBranchPlus className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Las llaves se calcularán cuando haya datos de grupos disponibles.</p>
-        </div>
-      )}
+      </div>
 
       {/* Banner informativo de estructura del torneo */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/10 p-5 space-y-3">
