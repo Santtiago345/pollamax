@@ -64,8 +64,8 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 overflow-y-auto">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">Configuración de Usuario</h3>
           <button onClick={onClose} className="text-zinc-400 hover:text-white"><X className="h-5 w-5" /></button>
