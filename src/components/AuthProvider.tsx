@@ -10,7 +10,7 @@ import {
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 interface UserProfile {
@@ -68,6 +68,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               country: '',
             };
             await setDoc(userRef, newProfile);
+
+            // Registrar en el feed de actividad
+            try {
+              await addDoc(collection(db, 'history'), {
+                userId: firebaseUser.uid,
+                userName: newProfile.name,
+                userPhoto: newProfile.photoURL || null,
+                message: `🎉 ${newProfile.name} se unió a la PollaMax`,
+                timestamp: new Date().toISOString(),
+              });
+            } catch (e) {
+              console.error('Error creating history entry:', e);
+            }
+
             setProfile(newProfile);
           }
           setLoading(false);
