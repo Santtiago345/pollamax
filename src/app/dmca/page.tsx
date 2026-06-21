@@ -21,7 +21,7 @@ export default function DmcaPage() {
         </ul>
 
         <h2 className="text-base font-bold text-white mt-6">2. DMCA (Digital Millennium Copyright Act)</h2>
-        <p>PollaMax respeta los derechos de propiedad intelectual de terceros. Si crees que algún contenido disponible en la aplicación infringe tus derechos de autor, por favor notifícalo a través de los canales de contacto proporcionados.</p>
+        <p>PollaMax respeta los derechos de propiedad intelectual de terceros. Si crees que algún contenido disponible en la aplicación infringe tus derechos de autor, por favor notifícalo a través del siguiente correo: santtiago345@gmail.com.</p>
         <p>Para presentar una notificación DMCA, incluye la siguiente información:</p>
         <ul className="list-disc pl-5 space-y-1 mt-2">
           <li>Identificación de la obra protegida que se alega infringida.</li>

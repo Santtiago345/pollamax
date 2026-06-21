@@ -26,7 +26,7 @@ export default function TerminosPage() {
         <p>Las puntuaciones se calculan automáticamente según las reglas publicadas en la plataforma. Los puntos son puramente simbólicos dentro del entorno familiar. No existe valor monetario real asociado a los puntos acumulados ni a las posiciones en el ranking.</p>
 
         <h2 className="text-base font-bold text-white mt-6">6. Propiedad intelectual</h2>
-        <p>Todo el contenido de la aplicación, incluyendo el código, diseño, logotipos y marcas, es propiedad de los desarrolladores de PollaMax. No está permitida su reproducción sin autorización expresa.</p>
+        <p>Todo el contenido de la aplicación, incluyendo el código, diseño, logotipos y marcas, es propiedad del desarrollador de PollaMax. No está permitida su reproducción sin autorización expresa.</p>
 
         <h2 className="text-base font-bold text-white mt-6">7. Limitación de responsabilidad</h2>
         <p>PollaMax no se hace responsable por daños directos o indirectos derivados del uso o la imposibilidad de uso de la plataforma. Los datos de partidos y resultados provienen de fuentes externas (OpenFootball) y pueden contener errores u omisiones.</p>
