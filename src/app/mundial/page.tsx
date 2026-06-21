@@ -309,7 +309,7 @@ function LiveMatchBanner({ matches, formatTime }: { matches: ProcessedMatch[]; f
         <div className="flex flex-col items-center gap-2">
           <div className="text-xs font-bold text-red-400 flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-            {liveMatch.minutes <= 45 ? `${liveMatch.minutes}'` : liveMatch.minutes <= 90 ? `${liveMatch.minutes}'` : `${liveMatch.minutes}'`}
+            {liveMatch.minutes}'
           </div>
           {liveMatch.ground && (
             <div className="text-xs text-zinc-400 flex items-center gap-1">
@@ -432,7 +432,7 @@ function MatchRow({ match, formatTime }: { match: ProcessedMatch; formatTime?: (
   const matchDate = new Date(match.date);
   const timeStr = formatTime ? formatTime(matchDate) : matchDate.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   const dateStr = matchDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-  const isHalfTime = match.status === 'live' && match.minutes >= 46 && match.minutes <= 60;
+  const isHalfTime = match.status === 'live' && match.minutes === 45 && match.scoreAHt != null;
   const isExtraTime = match.status === 'live' && match.minutes > 90;
 
   return (

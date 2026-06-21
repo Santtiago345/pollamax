@@ -318,9 +318,22 @@ function calcMatchMinutes(match: OpenFootballMatch): number {
   const now = new Date();
   const diffMs = now.getTime() - matchDate.getTime();
   if (diffMs < 0) return 0;
-  const mins = Math.floor(diffMs / 60000);
-  if (mins > 210) return 0;
-  return Math.min(mins, 210);
+  const elapsed = Math.floor(diffMs / 60000);
+  if (elapsed > 210) return 0;
+
+  // Restar 15 min del entretiempo para mostrar tiempo real de juego
+  if (elapsed <= 45) {
+    // Primer tiempo
+    return elapsed;
+  } else if (elapsed <= 60) {
+    // Entretiempo: congelar en 45'
+    return 45;
+  } else {
+    // Segundo tiempo: restar los 15 min de entretiempo
+    const adjusted = elapsed - 15;
+    // Cap a 99' (tiempo regular + añadido máximo estimado)
+    return Math.min(adjusted, 99);
+  }
 }
 
 export function processMatches(rawMatches: OpenFootballMatch[]): ProcessedMatch[] {
@@ -379,7 +392,7 @@ export function detectMatchChanges(prev: ProcessedMatch[], current: ProcessedMat
       });
     }
 
-    if (cur.status === 'live' && prev.minutes < 46 && cur.minutes >= 46) {
+    if (cur.status === 'live' && cur.scoreAHt != null && prev.scoreAHt == null) {
       changes.push({
         matchId: cur.id,
         type: 'halftime',
