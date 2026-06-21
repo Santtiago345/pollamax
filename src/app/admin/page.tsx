@@ -1039,6 +1039,56 @@ export default function AdminPage() {
                 Nuevo Jugador
               </button>
             </div>
+            <p className="text-xs text-zinc-600 border-t border-zinc-800 pt-3 mt-1">Simular eventos de partidos en vivo</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => {
+                  const teamA = matches.length > 0 ? matches[0].teamA : 'Argentina';
+                  const teamB = matches.length > 0 ? matches[0].teamB : 'Brasil';
+                  const title = '🔴 Partido en Vivo';
+                  const body = `${teamA} vs ${teamB} HA COMENZADO. ¡Corre a apostar!`;
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification(title, body);
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-3 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all"
+              >
+                <Play className="h-5 w-5" />
+                En Vivo
+              </button>
+              <button
+                onClick={() => {
+                  const teamA = matches.filter(m => m.status === 'live').length > 0
+                    ? matches.filter(m => m.status === 'live')[0].teamA : 'Argentina';
+                  const teamB = matches.filter(m => m.status === 'live').length > 0
+                    ? matches.filter(m => m.status === 'live')[0].teamB : 'Brasil';
+                  const title = '⚽ ¡GOL!';
+                  const body = `⚽ GOL de ${teamA}! ${teamA} ${Math.floor(Math.random() * 3) + 1} - ${Math.floor(Math.random() * 2)} ${teamB}`;
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification(title, body);
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-3 py-3 text-xs font-semibold text-yellow-400 hover:bg-yellow-500/10 transition-all"
+              >
+                <Trophy className="h-5 w-5" />
+                Gol ⚽
+              </button>
+              <button
+                onClick={() => {
+                  const teamA = matches.length > 0 ? matches[matches.length - 1].teamA : 'Francia';
+                  const teamB = matches.length > 0 ? matches[matches.length - 1].teamB : 'Inglaterra';
+                  const title = '🏁 Partido Finalizado';
+                  const body = `${teamA} ${Math.floor(Math.random() * 4)} - ${Math.floor(Math.random() * 3)} ${teamB}. Puntos actualizados.`;
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification(title, body);
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-all"
+              >
+                <Check className="h-5 w-5" />
+                Finalizado
+              </button>
+            </div>
             {!isIOS() && isNotificationSupported() && (
               <button
                 onClick={async () => {

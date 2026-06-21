@@ -205,10 +205,12 @@ export default function MundialPage() {
         )}
       </AnimatePresence>
 
-      {/* Banner del próximo partido */}
+      {/* Banner del próximo partido / partidos en vivo */}
       {!loading && activeTab === 'matches' && (
         <>
-        <LiveMatchBanner matches={matches} formatTime={formatTime} />
+        <div className="space-y-3">
+          <LiveMatchBanner matches={matches} formatTime={formatTime} />
+        </div>
         <NextMatchBanner
           matches={matches}
           onBet={() => window.location.href = '/matches'}
@@ -277,16 +279,19 @@ function useCountdown(targetDate: Date): string {
 }
 
 function LiveMatchBanner({ matches, formatTime }: { matches: ProcessedMatch[]; formatTime: (d: Date) => string }) {
-  const liveMatch = matches.find(m => m.status === 'live');
-  if (!liveMatch) return null;
+  const liveMatches = matches.filter(m => m.status === 'live');
+  if (liveMatches.length === 0) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-500/10 via-zinc-900/60 to-red-600/5 p-5 shadow-lg shadow-red-500/10"
-    >
+    <>
+      {liveMatches.map((liveMatch, idx) => (
+        <motion.div
+          key={liveMatch.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: idx * 0.1 }}
+          className="rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-500/10 via-zinc-900/60 to-red-600/5 p-5 shadow-lg shadow-red-500/10"
+        >
       <div className="flex items-center gap-2 text-[11px] font-bold text-red-400 uppercase tracking-widest mb-3">
         <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
         En Vivo
@@ -327,6 +332,8 @@ function LiveMatchBanner({ matches, formatTime }: { matches: ProcessedMatch[]; f
         </div>
       </div>
     </motion.div>
+      ))}
+    </>
   );
 }
 
@@ -1001,7 +1008,7 @@ function BracketMatchCard({ match, col, row }: { match: FilledMatch; col: number
       return (
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg shrink-0">{team.flag}</span>
-          <span className="font-semibold text-sm text-white truncate">{team.name}</span>
+          <span className="font-semibold text-sm text-white truncate">{getSpanishName(team.name)}</span>
         </div>
       );
     }
@@ -1136,7 +1143,7 @@ function BracketTab({ groups }: { groups: GroupStandings[] }) {
                 <div key={t.group} className="flex items-center gap-1.5 bg-orange-500/10 rounded-lg px-2.5 py-1.5 border border-orange-500/15">
                   <span className="font-bold text-orange-400 text-[10px]">#{i + 1}</span>
                   <span className="text-sm">{t.team?.flag ?? '🏳️'}</span>
-                  <span className="font-medium text-white truncate">{t.team?.team ?? 'TBD'}</span>
+                  <span className="font-medium text-white truncate">{getSpanishName(t.team?.team ?? 'TBD')}</span>
                   <span className="text-zinc-500 ml-auto">{t.team?.points ?? 0} pts</span>
                 </div>
               ))}

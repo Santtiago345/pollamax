@@ -294,13 +294,13 @@ export default function Home() {
               </div>
               <span className="text-xs text-zinc-400">Acierta el marcador exacto 2 veces seguidas → +1 pt extra, y +1 pt por cada acierto adicional</span>
               <div className="mt-2 flex items-center gap-2 text-xs">
-                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">E x1</span>
+                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">E</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x2 +1</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E +1</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x3 +2</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E +2</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x4+ +3</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E +3</span>
               </div>
             </motion.div>
             <motion.div
@@ -313,13 +313,13 @@ export default function Home() {
               </div>
               <span className="text-xs text-zinc-400">Acierta el ganador (no exacto) 3 veces seguidas → +3 pts extra, 4+ → +1 pt extra</span>
               <div className="mt-2 flex items-center gap-2 text-xs">
-                <span className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-bold">G x1</span>
+                <span className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-bold">G</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-bold">G x2</span>
+                <span className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-bold">G</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold border border-red-500/40">G x3 +3</span>
+                <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold border border-red-500/40">G +3</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold border border-red-500/40">G x4+ +1</span>
+                <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold border border-red-500/40">G +1</span>
               </div>
             </motion.div>
           </div>
