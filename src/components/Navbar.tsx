@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
@@ -14,6 +14,16 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pathname = usePathname();
+
+    // Bloquear scroll del fondo cuando el menú móvil está abierto
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
 
   if (!user) return null;
 
@@ -133,52 +143,72 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Menú Móvil */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-lg animate-in fade-in slide-in-from-top duration-200">
-            <div className="space-y-1.5 px-4 pb-4 pt-2">
-              {navLinks.map((link) => {
-                const Icon = link.icon;
-                const isActive = pathname === link.href;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={closeMobileMenu}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-all ${isActive
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                      }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {link.label}
-                  </Link>
-                );
-              })}
-              <motion.button
-                onClick={() => {
-                  closeMobileMenu();
-                  logout();
-                }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
-              >
-                <LogOut className="h-5 w-5" />
-                Cerrar Sesión
-              </motion.button>
-              <motion.button
-                onClick={() => { closeMobileMenu(); setSettingsOpen(true); }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-zinc-300 hover:bg-zinc-900/20 transition-all"
-              >
-                <Settings className="h-5 w-5" />
-                Configuración
-              </motion.button>
-            </div>
-          </div>
-        )}
+        {/* Menú Móvil Animado */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="md:hidden overflow-hidden border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-lg"
+            >
+              <div className="space-y-1.5 px-4 pb-4 pt-2">
+                {navLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === link.href;
+                  return (
+                    <motion.div
+                      key={link.href}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.15, delay: navLinks.indexOf(link) * 0.03 }}
+                    >
+                      <Link
+                        href={link.href}
+                        onClick={closeMobileMenu}
+                        className={`flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition-all ${isActive
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                          }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        {link.label}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+                <motion.button
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: navLinks.length * 0.03 }}
+                  onClick={() => {
+                    closeMobileMenu();
+                    logout();
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Cerrar Sesión
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: (navLinks.length + 1) * 0.03 }}
+                  onClick={() => { closeMobileMenu(); setSettingsOpen(true); }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-zinc-300 hover:bg-zinc-900/20 transition-all"
+                >
+                  <Settings className="h-5 w-5" />
+                  Configuración
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
       {/* UserSettings FUERA del <nav> para evitar problemas de z-index */}
       <UserSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />

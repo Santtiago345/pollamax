@@ -559,7 +559,7 @@ function MatchesTab({
     .filter(m => m.status === 'finished' || m.status === 'live' || m.status === 'scheduled')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // Agrupar por día
+  // Agrupar por día y ordenar por hora dentro de cada día
   const groupedByDay: Record<string, ProcessedMatch[]> = {};
   allMatches.forEach(m => {
     const d = new Date(m.date);
@@ -567,6 +567,10 @@ function MatchesTab({
     const label = key.charAt(0).toUpperCase() + key.slice(1);
     if (!groupedByDay[label]) groupedByDay[label] = [];
     groupedByDay[label].push(m);
+  });
+  // Ordenar explícitamente por hora dentro de cada día
+  Object.values(groupedByDay).forEach(day => {
+    day.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   });
 
   if (allMatches.length === 0) {
@@ -854,11 +858,11 @@ function getPositionInGroup(groups: GroupStandings[], groupLetter: string, pos: 
   return { name: g.teams[pos - 1].team, flag: g.teams[pos - 1].flag };
 }
 
-function getBestThirdFromSet(groups: GroupStandings[], groupLetters: string[]): TeamInfo | null {
+function getBestThirdFromSet(groups: GroupStandings[], groupLetters: string[], usedTeams: Set<string>): TeamInfo | null {
   const candidates: { team: GroupTeamStats; groupLetter: string }[] = [];
   for (const letter of groupLetters) {
     const g = groups.find(gr => getGroupLetter(gr.group) === letter);
-    if (g && g.teams[2]) {
+    if (g && g.teams[2] && !usedTeams.has(g.teams[2].team)) {
       candidates.push({ team: g.teams[2], groupLetter: letter });
     }
   }
@@ -867,10 +871,14 @@ function getBestThirdFromSet(groups: GroupStandings[], groupLetters: string[]): 
     b.team.goalDiff - a.team.goalDiff ||
     b.team.goalsFor - a.team.goalsFor
   );
-  return candidates.length > 0 ? { name: candidates[0].team.team, flag: candidates[0].team.flag } : null;
+  if (candidates.length > 0) {
+    usedTeams.add(candidates[0].team.team);
+    return { name: candidates[0].team.team, flag: candidates[0].team.flag };
+  }
+  return null;
 }
 
-function resolveSlot(slotCode: string, groups: GroupStandings[], matchResults: Map<string, string>): TeamInfo | null {
+function resolveSlot(slotCode: string, groups: GroupStandings[], matchResults: Map<string, string>, usedTeams: Set<string>): TeamInfo | null {
   // Patrón: "1A", "2B", "3C" (posición fija en grupo)
   const posMatch = slotCode.match(/^([123])([A-L])$/);
   if (posMatch) {
@@ -881,7 +889,7 @@ function resolveSlot(slotCode: string, groups: GroupStandings[], matchResults: M
   if (slotCode.startsWith('3') && slotCode.length > 2) {
     const setKey = slotCode;
     const letters = BEST_THIRD_SETS[setKey];
-    if (letters) return getBestThirdFromSet(groups, letters);
+    if (letters) return getBestThirdFromSet(groups, letters, usedTeams);
   }
   // Patrón: "W73" (ganador de partido M73)
   const wMatch = slotCode.match(/^W(\d+)$/);
@@ -910,12 +918,12 @@ interface FilledMatch {
   labelB: string;
 }
 
-function fillBracketMatch(m: KnockoutMatch, groups: GroupStandings[], results: Map<string, string>): FilledMatch {
+function fillBracketMatch(m: KnockoutMatch, groups: GroupStandings[], results: Map<string, string>, usedTeams: Set<string>): FilledMatch {
   return {
     id: m.id,
     venue: m.venue,
-    teamA: resolveSlot(m.slots[0].code, groups, results),
-    teamB: resolveSlot(m.slots[1].code, groups, results),
+    teamA: resolveSlot(m.slots[0].code, groups, results, usedTeams),
+    teamB: resolveSlot(m.slots[1].code, groups, results, usedTeams),
     slotA: m.slots[0].code,
     slotB: m.slots[1].code,
     labelA: m.slots[0].label,
@@ -923,8 +931,8 @@ function fillBracketMatch(m: KnockoutMatch, groups: GroupStandings[], results: M
   };
 }
 
-function fillRound(matches: KnockoutMatch[], groups: GroupStandings[], results: Map<string, string>): FilledMatch[] {
-  return matches.map(m => fillBracketMatch(m, groups, results));
+function fillRound(matches: KnockoutMatch[], groups: GroupStandings[], results: Map<string, string>, usedTeams: Set<string>): FilledMatch[] {
+  return matches.map(m => fillBracketMatch(m, groups, results, usedTeams));
 }
 
 // ============================================================
@@ -1072,12 +1080,13 @@ function BracketConnectors() {
 
 function BracketTab({ groups }: { groups: GroupStandings[] }) {
   const results = new Map<string, string>();
-  const r32 = fillRound(R32_MATCHES, groups, results);
-  const r16 = fillRound(R16_MATCHES, groups, results);
-  const qf = fillRound(QF_MATCHES, groups, results);
-  const sf = fillRound(SF_MATCHES, groups, results);
-  const third = fillRound(THIRD_MATCH, groups, results);
-  const final = fillRound(FINAL_MATCH, groups, results);
+  const usedTeams = new Set<string>();
+  const r32 = fillRound(R32_MATCHES, groups, results, usedTeams);
+  const r16 = fillRound(R16_MATCHES, groups, results, usedTeams);
+  const qf = fillRound(QF_MATCHES, groups, results, usedTeams);
+  const sf = fillRound(SF_MATCHES, groups, results, usedTeams);
+  const third = fillRound(THIRD_MATCH, groups, results, usedTeams);
+  const final = fillRound(FINAL_MATCH, groups, results, usedTeams);
 
   const totalTeams = groups.reduce((acc, g) => acc + g.teams.length, 0);
   const hasGroupData = totalTeams > 0;
