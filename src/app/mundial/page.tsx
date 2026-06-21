@@ -946,60 +946,6 @@ function fillRound(matches: KnockoutMatch[], groups: GroupStandings[], results: 
 // Bracket en Árbol Clásico (CSS Grid con líneas conectoras)
 // ============================================================
 
-interface BracketGridItem {
-  id: string;
-  type: 'match' | 'spacer';
-  match?: FilledMatch;
-  gridRowStart: number;
-  gridRowEnd: number;
-  roundLabel?: string;
-}
-
-function buildBracketGrid(r32: FilledMatch[], r16: FilledMatch[], qf: FilledMatch[], sf: FilledMatch[], final: FilledMatch[], third: FilledMatch[]): BracketGridItem[][] {
-  const columns: BracketGridItem[][] = [[], [], [], [], [], []];
-
-  // Ronda de 32 (col 0): 16 matches, each at rows [i*2, i*2+1]
-  r32.forEach((m, i) => {
-    columns[0].push({ id: m.id, type: 'match', match: m, gridRowStart: i * 2 + 1, gridRowEnd: i * 2 + 2 });
-  });
-
-  // Octavos (col 1): 8 matches, each at rows [4i+1, 4i+2]
-  r16.forEach((m, i) => {
-    const rowStart = i * 4 + 2;
-    columns[1].push({ id: m.id, type: 'match', match: m, gridRowStart: rowStart, gridRowEnd: rowStart });
-    // vertical connector spacer above
-    columns[1].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: i * 4 + 1, gridRowEnd: i * 4 + 1 });
-  });
-
-  // Cuartos (col 2): 4 matches, each at rows [8i+3, 8i+3]
-  qf.forEach((m, i) => {
-    const rowStart = i * 8 + 4;
-    columns[2].push({ id: m.id, type: 'match', match: m, gridRowStart: rowStart, gridRowEnd: rowStart });
-    columns[2].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: i * 8 + 3, gridRowEnd: i * 8 + 3 });
-  });
-
-  // Semifinal (col 3): 2 matches
-  sf.forEach((m, i) => {
-    const rowStart = i * 16 + 8;
-    columns[3].push({ id: m.id, type: 'match', match: m, gridRowStart: rowStart, gridRowEnd: rowStart });
-    columns[3].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: i * 16 + 7, gridRowEnd: i * 16 + 7 });
-  });
-
-  // Final (col 4): row 16
-  final.forEach((m) => {
-    columns[4].push({ id: m.id, type: 'match', match: m, gridRowStart: 16, gridRowEnd: 16 });
-    columns[4].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: 15, gridRowEnd: 15 });
-  });
-
-  // Third place (col 4): row 18
-  third.forEach((m) => {
-    columns[5].push({ id: m.id, type: 'match', match: m, gridRowStart: 18, gridRowEnd: 18 });
-    columns[5].push({ id: `v-${m.id}`, type: 'spacer', gridRowStart: 17, gridRowEnd: 17 });
-  });
-
-  return columns;
-}
-
 function BracketMatchCard({ match, col, row }: { match: FilledMatch; col: number; row: number }) {
   const isThirdSlot = (slot: string) => slot.startsWith('3');
 
@@ -1055,35 +1001,7 @@ function BracketMatchCard({ match, col, row }: { match: FilledMatch; col: number
   );
 }
 
-function BracketConnectors() {
-  // Las líneas conectoras se dibujan con elementos posicionados absolutamente en el grid
-  const connectors: { col: number; row: number; height?: number; side: 'left' | 'right' }[] = [];
 
-  // Conectores verticales entre R32 que alimentan un mismo R16
-  // Quarter 1: R32[0]+R32[1] → R16[0], R32[2]+R32[3] → R16[1]
-  // Quarter 2: R32[4]+R32[5] → R16[2], R32[6]+R32[7] → R16[3]
-  // ...y así sucesivamente
-  for (let q = 0; q < 4; q++) {
-    const baseIdx = q * 4;
-    // R16 match at row = q*8+2 (quarter: 0→row 2, 1→row 10, 2→row 18, 3→row 26)
-    // No, let me recalculate:
-    // Q0: R16[0] at row 2, R16[1] at row 6
-    // Q1: R16[2] at row 10, R16[3] at row 14
-    // Q2: R16[4] at row 18, R16[5] at row 22
-    // Q3: R16[6] at row 26, R16[7] at row 30
-    for (let p = 0; p < 2; p++) {
-      const r32RowA = (q * 4 + p * 2) * 2 + 1; // R32 match at this row
-      const r32RowB = (q * 4 + p * 2 + 1) * 2 + 1;
-      const r16Row = q * 8 + p * 4 + 2;
-      connectors.push({ col: 0, row: r32RowA, side: 'right' });
-      connectors.push({ col: 0, row: r32RowB, side: 'right' });
-      connectors.push({ col: 1, row: r16Row, side: 'left' });
-      // vertical line at col divider between R32 and R16, spanning from r32RowA to r32RowB
-    }
-  }
-
-  return null; // Placeholder - las líneas se dibujan con CSS
-}
 
 function BracketTab({ groups }: { groups: GroupStandings[] }) {
   const results = new Map<string, string>();

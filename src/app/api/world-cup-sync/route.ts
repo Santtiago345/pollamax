@@ -6,8 +6,18 @@ import { calculatePoints } from '@/lib/rules';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Verificar API key si está configurada en producción
+    const authHeader = request.headers.get('authorization');
+    const apiKey = process.env.SYNC_API_KEY;
+    if (apiKey && authHeader !== `Bearer ${apiKey}`) {
+      return NextResponse.json(
+        { message: 'No autorizado.', status: 'error' },
+        { status: 401 }
+      );
+    }
+
     // 1. Obtener datos del Mundial desde openfootball
     const rawData = await fetchWorldCupData();
 
@@ -190,7 +200,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('Error in world-cup-sync:', error);
     return NextResponse.json(
-      { message: 'Error durante la sincronización del Mundial.', error: error.message, status: 'error' },
+      { message: 'Error durante la sincronización del Mundial.', status: 'error' },
       { status: 500 }
     );
   }

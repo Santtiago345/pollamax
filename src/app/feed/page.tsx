@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { RefreshCw, ClipboardList, Activity, Clock, Flame } from 'lucide-react';
+import { RefreshCw, ClipboardList, Clock, Flame } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
 
 interface HistoryEntry {
@@ -22,6 +22,7 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubFallback: (() => void) | null = null;
     // Consultar las últimas 50 entradas del feed de actividad
     const q = query(
       collection(db, 'history'),
@@ -43,7 +44,7 @@ export default function FeedPage() {
         console.error('Error fetching activity feed:', error);
         // Fallback: cargar sin orden si el índice no existe
         const fallbackQ = query(collection(db, 'history'), limit(50));
-        const unsubFallback = onSnapshot(fallbackQ, (snap) => {
+        unsubFallback = onSnapshot(fallbackQ, (snap) => {
           const list: HistoryEntry[] = [];
           snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistoryEntry));
           list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
@@ -53,12 +54,13 @@ export default function FeedPage() {
           console.error('Feed fallback also failed:', e2);
           setLoading(false);
         });
-        // No podemos retornar el cleanup del fallback desde aquí,
-        // pero el error es poco común después del primer fallo
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubFallback) unsubFallback();
+    };
   }, []);
 
   // Obtener lista de usuarios registrados para mostrar en el encabezado del feed

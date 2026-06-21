@@ -8,8 +8,18 @@ export const dynamic = 'force-dynamic';
 // Lógica de Sincronización de Partidos
 // Este endpoint es llamado por un cron o servicio de fondo para actualizar los marcadores en tiempo real.
 // Si se cuenta con una API key de api-football o football-data.org se puede realizar el fetch aquí.
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Verificar API key si está configurada en producción
+    const authHeader = request.headers.get('authorization');
+    const apiKey = process.env.SYNC_API_KEY;
+    if (apiKey && authHeader !== `Bearer ${apiKey}`) {
+      return NextResponse.json(
+        { message: 'No autorizado.' },
+        { status: 401 }
+      );
+    }
+
     const matchesRef = collection(db, 'matches');
     // Consultar todos los partidos activos (scheduled o live) para sincronizarlos
     const q = query(matchesRef, where('status', 'in', ['scheduled', 'live']));

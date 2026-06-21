@@ -22,7 +22,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download, Bell, BellRing, BellOff, Users, TrendingUp, UserPlus, ClipboardList, History, AlertTriangle, Database, Search, X, Ban, Settings, FileText, MessageSquare, Eye, EyeOff } from 'lucide-react';
+import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Bell, BellRing, Users, TrendingUp, UserPlus, History, Database, Search, X, Settings, MessageSquare, Eye, EyeOff, FileText } from 'lucide-react';
 import { sendBrowserNotification, isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
 
 interface Match {

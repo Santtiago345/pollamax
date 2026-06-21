@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -106,27 +106,30 @@ export default function MatchesPage() {
   }, [user]);
 
   // Separar partidos por día
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
+  const { todayMatches, tomorrowMatches, futureMatches } = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+    const tomorrowStart = new Date(todayEnd);
+    const tomorrowEnd = new Date(tomorrowStart);
+    tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
 
-  const tomorrowStart = new Date(todayEnd);
-  const tomorrowEnd = new Date(tomorrowStart);
-  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-
-  const todayMatches = matches.filter(m => {
-    const d = new Date(m.date);
-    return d >= todayStart && d < todayEnd;
-  });
-  const tomorrowMatches = matches.filter(m => {
-    const d = new Date(m.date);
-    return d >= tomorrowStart && d < tomorrowEnd;
-  });
-  const futureMatches = matches.filter(m => {
-    const d = new Date(m.date);
-    return d >= tomorrowEnd;
-  });
+    return {
+      todayMatches: matches.filter(m => {
+        const d = new Date(m.date);
+        return d >= todayStart && d < todayEnd;
+      }),
+      tomorrowMatches: matches.filter(m => {
+        const d = new Date(m.date);
+        return d >= tomorrowStart && d < tomorrowEnd;
+      }),
+      futureMatches: matches.filter(m => {
+        const d = new Date(m.date);
+        return d >= tomorrowEnd;
+      }),
+    };
+  }, [matches]);
 
   if (loading || apiLoading) {
     return (

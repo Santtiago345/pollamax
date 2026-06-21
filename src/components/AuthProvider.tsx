@@ -5,12 +5,10 @@ import {
   User,
   signInWithPopup,
   GoogleAuthProvider,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, getDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 interface UserProfile {

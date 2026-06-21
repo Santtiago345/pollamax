@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trophy, RefreshCw, Star, Medal, HelpCircle, UserPlus, TrendingUp, Bell } from 'lucide-react';
+import { Trophy, RefreshCw, Star, Medal, HelpCircle } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
 import { getFlagByCountryName } from '@/lib/countries';
 import { motion, AnimatePresence } from 'framer-motion';
