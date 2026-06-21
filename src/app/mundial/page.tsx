@@ -2,22 +2,26 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { fetchWorldCupData, processMatches, calculateGroupStandings, detectMatchChanges, getSpanishName, type ProcessedMatch, type GroupStandings, type GroupTeamStats, type MatchChange } from '@/lib/worldCupData';
-import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, CheckCircle2, Clock, Play, MapPin, Bell, Timer, Swords, ChevronRight } from 'lucide-react';
+import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, Clock, Play, MapPin, Bell, Timer, Swords, ChevronRight, Check, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { calculatePoints } from '@/lib/rules';
 
-type TabId = 'today' | 'groups' | 'results' | 'bracket';
+type TabId = 'matches' | 'groups' | 'bracket';
 
 export default function MundialPage() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('today');
+  const { user, profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabId>('matches');
   const [matches, setMatches] = useState<ProcessedMatch[]>([]);
   const [groups, setGroups] = useState<GroupStandings[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [events, setEvents] = useState<MatchChange[]>([]);
   const [syncingMatch, setSyncingMatch] = useState(false);
+  const [bets, setBets] = useState<Record<string, { predA: number; predB: number }>>({});
   const prevMatchesRef = useRef<ProcessedMatch[]>([]);
 
   const loadData = useCallback(async () => {
@@ -75,22 +79,31 @@ export default function MundialPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Escuchar apuestas del usuario
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'bets'), where('userId', '==', user.uid));
+    const unsub = onSnapshot(q, (snap) => {
+      const map: Record<string, { predA: number; predB: number }> = {};
+      snap.forEach(d => {
+        const b = d.data();
+        map[b.matchId] = { predA: b.predA, predB: b.predB };
+      });
+      setBets(map);
+    });
+    return () => unsub();
+  }, [user]);
+
+  // Formatear hora AM/PM
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
   // Filtros por tab
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-
-  const todayMatches = matches.filter(m => m.date.startsWith(todayStr));
-  const finishedMatches = [...matches]
-    .filter(m => m.status === 'finished')
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const upcomingMatches = matches
-    .filter(m => m.status === 'scheduled')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode; count?: number }[] = [
-    { id: 'today', label: 'Hoy', icon: <Calendar className="h-4 w-4" />, count: todayMatches.length + matches.filter(m => m.status === 'live').length },
+    { id: 'matches', label: 'Partidos', icon: <Calendar className="h-4 w-4" />, count: matches.length },
     { id: 'groups', label: 'Grupos', icon: <BarChart3 className="h-4 w-4" />, count: groups.length },
-    { id: 'results', label: 'Resultados', icon: <CheckCircle2 className="h-4 w-4" />, count: finishedMatches.length },
     { id: 'bracket', label: 'Llaves', icon: <GitBranchPlus className="h-4 w-4" /> },
   ];
 
@@ -193,11 +206,15 @@ export default function MundialPage() {
       </AnimatePresence>
 
       {/* Banner del próximo partido */}
-      {!loading && activeTab === 'today' && (
+      {!loading && activeTab === 'matches' && (
+        <>
+        <LiveMatchBanner matches={matches} formatTime={formatTime} />
         <NextMatchBanner
           matches={matches}
           onBet={() => window.location.href = '/matches'}
+          formatTime={formatTime}
         />
+        </>
       )}
 
       {/* Contenido de los Tabs */}
@@ -210,19 +227,18 @@ export default function MundialPage() {
         </div>
       ) : (
         <>
-          {/* TAB: HOY */}
-          {activeTab === 'today' && (
-            <TodayTab todayMatches={todayMatches} liveMatches={matches.filter(m => m.status === 'live')} upcomingMatches={upcomingMatches.slice(0, 10)} />
+          {/* TAB: PARTIDOS (unifica hoy + resultados con color por acierto) */}
+          {activeTab === 'matches' && (
+            <MatchesTab
+              matches={matches}
+              bets={bets}
+              formatTime={formatTime}
+            />
           )}
 
           {/* TAB: GRUPOS */}
           {activeTab === 'groups' && (
             <GroupsTab groups={groups} />
-          )}
-
-          {/* TAB: RESULTADOS */}
-          {activeTab === 'results' && (
-            <ResultsTab matches={finishedMatches} />
           )}
 
           {/* TAB: LLAVES */}
@@ -260,11 +276,65 @@ function useCountdown(targetDate: Date): string {
   return display;
 }
 
+function LiveMatchBanner({ matches, formatTime }: { matches: ProcessedMatch[]; formatTime: (d: Date) => string }) {
+  const liveMatch = matches.find(m => m.status === 'live');
+  if (!liveMatch) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="rounded-2xl border border-red-500/40 bg-gradient-to-br from-red-500/10 via-zinc-900/60 to-red-600/5 p-5 shadow-lg shadow-red-500/10"
+    >
+      <div className="flex items-center gap-2 text-[11px] font-bold text-red-400 uppercase tracking-widest mb-3">
+        <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+        En Vivo
+      </div>
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-4xl">{liveMatch.teamAFlag}</span>
+            <span className="text-sm font-bold text-white">{getSpanishName(liveMatch.teamA)}</span>
+          </div>
+          <div className="flex flex-col items-center px-2">
+            <span className="text-3xl font-black text-red-400">{liveMatch.scoreA ?? 0} - {liveMatch.scoreB ?? 0}</span>
+            <span className="text-[10px] text-zinc-500">{liveMatch.round.replace('Matchday ', 'J')}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-4xl">{liveMatch.teamBFlag}</span>
+            <span className="text-sm font-bold text-white">{getSpanishName(liveMatch.teamB)}</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-xs font-bold text-red-400 flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+            {liveMatch.minutes <= 45 ? `${liveMatch.minutes}'` : liveMatch.minutes <= 90 ? `${liveMatch.minutes}'` : `${liveMatch.minutes}'`}
+          </div>
+          {liveMatch.ground && (
+            <div className="text-xs text-zinc-400 flex items-center gap-1">
+              <MapPin className="h-3 w-3" />{liveMatch.ground}
+            </div>
+          )}
+          <Link
+            href="/matches"
+            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-all shadow-lg shadow-red-500/20"
+          >
+            <Swords className="h-4 w-4" />
+            Ir a Apuestas
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ============================================================
 // Banner del próximo partido
 // ============================================================
 
-function NextMatchBanner({ matches, onBet }: { matches: ProcessedMatch[]; onBet: () => void }) {
+function NextMatchBanner({ matches, onBet, formatTime }: { matches: ProcessedMatch[]; onBet: () => void; formatTime: (d: Date) => string }) {
   const now = new Date();
   const next = matches
     .filter(m => m.status === 'scheduled' && new Date(m.date) > now)
@@ -314,7 +384,7 @@ function NextMatchBanner({ matches, onBet }: { matches: ProcessedMatch[]; onBet:
           </div>
           <div className="text-xs text-zinc-400 flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {matchTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            {formatTime(matchTime)}
             {next.ground && <><MapPin className="h-3 w-3 ml-1" />{next.ground}</>}
           </div>
           <motion.button
@@ -342,17 +412,6 @@ function NextMatchBanner({ matches, onBet }: { matches: ProcessedMatch[]; onBet:
 // Componente MatchRow con colores y animación escalonada
 // ============================================================
 
-function StaggerMatchRow({ match, index }: { match: ProcessedMatch; index: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.04, ease: 'easeOut' }}
-    >
-      <MatchRow match={match} />
-    </motion.div>
-  );
-}
 
 function getStatusColor(match: ProcessedMatch): string {
   if (match.status === 'live') return 'border-red-500/40 bg-red-500/8';
@@ -369,9 +428,9 @@ function getStatusColor(match: ProcessedMatch): string {
 // Sub-componentes de Tabs
 // ============================================================
 
-function MatchRow({ match }: { match: ProcessedMatch }) {
+function MatchRow({ match, formatTime }: { match: ProcessedMatch; formatTime?: (d: Date) => string }) {
   const matchDate = new Date(match.date);
-  const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const timeStr = formatTime ? formatTime(matchDate) : matchDate.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   const dateStr = matchDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   const isHalfTime = match.status === 'live' && match.minutes >= 46 && match.minutes <= 60;
   const isExtraTime = match.status === 'live' && match.minutes > 90;
@@ -461,12 +520,48 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
   );
 }
 
-function TodayTab({ todayMatches, liveMatches, upcomingMatches }: { todayMatches: ProcessedMatch[]; liveMatches: ProcessedMatch[]; upcomingMatches: ProcessedMatch[] }) {
-  const allTodayAndLive = [...new Map([...liveMatches, ...todayMatches].map(m => [m.id, m])).values()];
+// Determinar color del partido según acierto del usuario
+function getBetResultColor(
+  match: ProcessedMatch,
+  userBet: { predA: number; predB: number } | undefined,
+): { border: string; bg: string; label: string; icon: string } {
+  if (!userBet || match.status === 'scheduled') {
+    return { border: 'border-zinc-800/60 bg-zinc-900/10', bg: '', label: '', icon: '' };
+  }
+  if (match.status !== 'finished' || match.scoreA === null || match.scoreB === null) {
+    return { border: 'border-zinc-800/60 bg-zinc-900/10', bg: '', label: '', icon: '' };
+  }
+  const isExact = userBet.predA === match.scoreA && userBet.predB === match.scoreB;
+  const predDiff = Math.sign(userBet.predA - userBet.predB);
+  const actualDiff = Math.sign(match.scoreA - match.scoreB);
+  const isWinner = predDiff === actualDiff && predDiff !== 0;
+  const isDraw = match.scoreA === match.scoreB && userBet.predA === userBet.predB;
 
-  // Agrupar próximos partidos por día
+  if (isExact) {
+    return { border: 'border-emerald-500/40 bg-emerald-500/10', bg: 'bg-emerald-500/5', label: 'Acierto exacto', icon: '🎯' };
+  }
+  if (isWinner || isDraw) {
+    return { border: 'border-orange-500/40 bg-orange-500/10', bg: 'bg-orange-500/5', label: 'Ganador/empate correcto', icon: '⚡' };
+  }
+  return { border: 'border-red-500/20 bg-red-500/5', bg: 'bg-red-500/5', label: 'No acertaste', icon: '❌' };
+}
+
+function MatchesTab({
+  matches,
+  bets,
+  formatTime,
+}: {
+  matches: ProcessedMatch[];
+  bets: Record<string, { predA: number; predB: number }>;
+  formatTime: (d: Date) => string;
+}) {
+  const allMatches = [...matches]
+    .filter(m => m.status === 'finished' || m.status === 'live' || m.status === 'scheduled')
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Agrupar por día
   const groupedByDay: Record<string, ProcessedMatch[]> = {};
-  upcomingMatches.forEach(m => {
+  allMatches.forEach(m => {
     const d = new Date(m.date);
     const key = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     const label = key.charAt(0).toUpperCase() + key.slice(1);
@@ -474,27 +569,17 @@ function TodayTab({ todayMatches, liveMatches, upcomingMatches }: { todayMatches
     groupedByDay[label].push(m);
   });
 
+  if (allMatches.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center text-zinc-500">
+        <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <p className="text-sm">No hay partidos disponibles.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      {/* Partidos del día / en vivo */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-black text-white flex items-center gap-2 pb-2 border-b border-zinc-800/60">
-          <Play className="h-5 w-5 text-red-400" />
-          {allTodayAndLive.length > 0 ? 'Partidos de Hoy' : 'No hay partidos hoy'}
-        </h2>
-        {allTodayAndLive.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {allTodayAndLive.map((m, i) => <StaggerMatchRow key={m.id} match={m} index={i} />)}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
-            <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No hay partidos programados para hoy.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Todos los Próximos Partidos agrupados por día */}
       {Object.entries(groupedByDay).map(([dayLabel, dayMatches]) => (
         <div key={dayLabel} className="space-y-3">
           <h2 className="text-sm font-black text-emerald-400 flex items-center gap-2 pb-2 border-b border-zinc-800/60 uppercase tracking-wider">
@@ -502,20 +587,94 @@ function TodayTab({ todayMatches, liveMatches, upcomingMatches }: { todayMatches
             {dayLabel}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {dayMatches.map((m, i) => <StaggerMatchRow key={m.id} match={m} index={i} />)}
+            {dayMatches.map((m, i) => {
+              const bet = bets[m.id];
+              const colors = getBetResultColor(m, bet);
+              const showBetInfo = bet && m.status !== 'scheduled';
+              return (
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.03, ease: 'easeOut' }}
+                >
+                  <div className={`rounded-xl border px-4 py-3.5 flex flex-col gap-2 transition-all ${getStatusColor(m)} ${colors.border} ${colors.bg}`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+                        <span className="font-bold text-sm text-white truncate text-right">{getSpanishName(m.teamA)}</span>
+                        <span className="text-2xl shrink-0">{m.teamAFlag}</span>
+                      </div>
+                      <div className="text-center shrink-0 min-w-[90px]">
+                        {m.status === 'finished' ? (
+                          <div className="flex items-center gap-2 justify-center">
+                            <span className="text-xl font-black text-white">{m.scoreA}</span>
+                            <span className="text-zinc-600 font-bold">-</span>
+                            <span className="text-xl font-black text-white">{m.scoreB}</span>
+                          </div>
+                        ) : m.status === 'live' ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                              <span className="text-xs font-bold text-red-400 uppercase">En Vivo</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-black text-white">{m.scoreA ?? 0}</span>
+                              <span className="text-zinc-600">-</span>
+                              <span className="text-lg font-black text-white">{m.scoreB ?? 0}</span>
+                            </div>
+                            <div className="text-xs text-red-300 font-bold">{m.minutes}'</div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <span className="text-sm font-black text-zinc-300">{formatTime(new Date(m.date))}</span>
+                            <span className="text-[10px] text-zinc-500">{new Date(m.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                          </div>
+                        )}
+                        {m.group?.startsWith('Group') && (
+                          <div className="mt-1">
+                            <span className="text-[9px] font-bold text-zinc-500 uppercase">{m.group.replace('Group ', 'Gr. ')}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-2xl shrink-0">{m.teamBFlag}</span>
+                        <span className="font-bold text-sm text-white truncate">{getSpanishName(m.teamB)}</span>
+                      </div>
+                    </div>
+                    {/* Info de apuesta y resultado */}
+                    {showBetInfo && (
+                      <div className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs border ${colors.border}`}>
+                        <span className="text-zinc-400">
+                          Tu pronóstico: <strong className="text-white">{bet.predA}-{bet.predB}</strong>
+                        </span>
+                        <span className={`font-bold flex items-center gap-1 ${
+                          colors.label === 'Acierto exacto' ? 'text-emerald-400' :
+                          colors.label === 'Ganador/empate correcto' ? 'text-orange-400' :
+                          'text-red-400'
+                        }`}>
+                          {colors.icon} {colors.label}
+                        </span>
+                      </div>
+                    )}
+                    {!bet && m.status === 'finished' && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900/40 text-xs text-zinc-500">
+                        <AlertCircle className="h-3 w-3" /> No apostaste
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       ))}
-
-      {Object.keys(groupedByDay).length === 0 && allTodayAndLive.length === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center text-zinc-500">
-          <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No hay partidos programados. Vuelve más tarde.</p>
-        </div>
-      )}
     </div>
   );
 }
+
+// ============================================================
+// Tab de Grupos
+// ============================================================
 
 function GroupsTab({ groups }: { groups: GroupStandings[] }) {
   if (groups.length === 0) {
@@ -589,42 +748,6 @@ function GroupsTab({ groups }: { groups: GroupStandings[] }) {
           </div>
           <div className="px-4 py-2 bg-zinc-900/30 text-[9px] text-zinc-600 text-center uppercase tracking-widest font-semibold border-t border-zinc-900">
             Top 3 clasifican a Ronda de 32
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ResultsTab({ matches }: { matches: ProcessedMatch[] }) {
-  if (matches.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center text-zinc-500">
-        <CheckCircle2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-        <p className="text-sm">No hay resultados disponibles aún.</p>
-      </div>
-    );
-  }
-
-  // Agrupar por fecha
-  const byDate: Record<string, ProcessedMatch[]> = {};
-  matches.forEach(m => {
-    const d = new Date(m.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    const key = d.charAt(0).toUpperCase() + d.slice(1);
-    if (!byDate[key]) byDate[key] = [];
-    byDate[key].push(m);
-  });
-
-  return (
-    <div className="space-y-8">
-      {Object.entries(byDate).map(([dateLabel, dayMatches]) => (
-        <div key={dateLabel} className="space-y-3">
-          <h2 className="text-sm font-black text-emerald-400 flex items-center gap-2 pb-2 border-b border-zinc-800/60 uppercase tracking-wider">
-            <CheckCircle2 className="h-4 w-4" />
-            {dateLabel}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {dayMatches.map(m => <MatchRow key={m.id} match={m} />)}
           </div>
         </div>
       ))}
