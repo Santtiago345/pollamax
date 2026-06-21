@@ -236,15 +236,15 @@ export default function Home() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Marcador Exacto</span>
-            <span className="text-lg font-bold text-emerald-400">+5 Puntos</span>
+            <span className="text-lg font-bold text-emerald-400">+2 Bonus</span>
           </motion.div>
           <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Ganador Correcto</span>
-            <span className="text-lg font-bold text-emerald-400">+3 Puntos</span>
+            <span className="text-lg font-bold text-emerald-400">+5 Puntos</span>
           </motion.div>
           <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Empate Correcto</span>
-            <span className="text-lg font-bold text-emerald-400">+2 Puntos</span>
+            <span className="text-lg font-bold text-emerald-400">+3 Puntos</span>
           </motion.div>
           <motion.div whileHover={{ scale: 1.05 }} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800/50">
             <span className="text-zinc-500 block text-xs">Diferencia de Goles</span>
@@ -292,15 +292,15 @@ export default function Home() {
                 <span className="text-lg">🎯</span>
                 <span className="font-bold text-emerald-300">Racha de Marcadores</span>
               </div>
-              <span className="text-xs text-zinc-400">Acierta el marcador exacto 3 veces seguidas → +1 pt extra, 4+ → +2 pts extra</span>
+              <span className="text-xs text-zinc-400">Acierta el marcador exacto 2 veces seguidas → +1 pt extra, y +1 pt por cada acierto adicional</span>
               <div className="mt-2 flex items-center gap-2 text-xs">
                 <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">E x1</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">E x2</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x2 +1</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x3 +1</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x3 +2</span>
                 <span className="text-zinc-600">→</span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x4+ +2</span>
+                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">E x4+ +3</span>
               </div>
             </motion.div>
             <motion.div

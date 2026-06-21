@@ -1,12 +1,12 @@
 /**
  * Calcula los puntos ganados por un usuario basados en su predicción y el resultado real de un partido.
  * 
- * Reglas de puntuación (acumulativas si no es marcador exacto):
- * - Marcador exacto -> 5 puntos (planos, no se acumula nada más).
- * - Selección del ganador correcto (no exacto) -> 3 puntos.
- * - Selección de empate correcto (no exacto) -> 2 puntos.
+ * Reglas de puntuación:
+ * - Ganador correcto -> 5 puntos base.
+ * - Marcador exacto -> +2 puntos de bonus (adicional a los 5 del ganador).
+ * - Empate correcto -> 3 puntos.
  * - Goles de un equipo -> 1 punto por cada equipo que coincida exactamente con la predicción (máximo 2).
- * - Diferencia de goles exacta -> 1 punto (si no es exacto el marcador).
+ * - Diferencia de goles exacta -> 1 punto.
  * 
  * @param predA Goles predichos para el equipo A
  * @param predB Goles predichos para el equipo B
@@ -19,37 +19,38 @@ export function calculatePoints(
   scoreA: number,
   scoreB: number
 ): number {
-  // 1. Marcador exacto
-  if (predA === scoreA && predB === scoreB) {
-    return 5;
-  }
-
   let points = 0;
 
-  // 2. Ganador o empate correcto (no exacto)
   const realWinner = scoreA > scoreB ? 'A' : scoreA < scoreB ? 'B' : 'draw';
   const predWinner = predA > predB ? 'A' : predA < predB ? 'B' : 'draw';
 
+  // Ganador o empate correcto
   if (realWinner === predWinner) {
     if (realWinner === 'draw') {
-      points += 2; // Empate correcto
+      points += 3; // Empate correcto
     } else {
-      points += 3; // Ganador correcto
+      points += 5; // Ganador correcto
     }
   }
 
-  // 3. Goles de un equipo: 1 punto por cada equipo que coincida
+  // Marcador exacto: bonus adicional
+  if (predA === scoreA && predB === scoreB) {
+    points += 2; // Bonus por exactitud
+    return points; // No se acumula diferencia ni goles individuales
+  }
+
+  // Diferencia de goles exacta
+  const realDiff = scoreA - scoreB;
+  const predDiff = predA - predB;
+  if (realDiff === predDiff) {
+    points += 1;
+  }
+
+  // Goles de un equipo: 1 punto por cada equipo que coincida
   if (predA === scoreA) {
     points += 1;
   }
   if (predB === scoreB) {
-    points += 1;
-  }
-
-  // 4. Diferencia de goles exacta (si no es exacto el marcador)
-  const realDiff = scoreA - scoreB;
-  const predDiff = predA - predB;
-  if (realDiff === predDiff) {
     points += 1;
   }
 

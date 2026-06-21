@@ -81,8 +81,7 @@ export async function GET() {
 
               if (isExact) {
                 const newCount = prevStreak.type === 'exact' ? (prevStreak.count || 0) + 1 : 1;
-                if (newCount === 3) extraPoints = 1;
-                else if (newCount >= 4) extraPoints = 2;
+                if (newCount >= 2) extraPoints = newCount - 1;
                 newStreak = { type: 'exact', count: newCount, lastMatchId: matchDoc.id };
               } else if (isWinner) {
                 const newCount = prevStreak.type === 'winner' ? (prevStreak.count || 0) + 1 : 1;

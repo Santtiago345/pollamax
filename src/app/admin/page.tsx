@@ -266,8 +266,8 @@ export default function AdminPage() {
 
         if (isExact) {
           const newCount = prevStreak.type === 'exact' ? (prevStreak.count || 0) + 1 : 1;
-          if (newCount === 3) extraPoints = 1;
-          else if (newCount >= 4) extraPoints = 2;
+          // Cada marcador exacto da +1 extra desde el 2° consecutivo
+          if (newCount >= 2) extraPoints = newCount - 1;
           newStreak = { type: 'exact', count: newCount, lastMatchId: match.id };
         } else if (isWinner) {
           const newCount = prevStreak.type === 'winner' ? (prevStreak.count || 0) + 1 : 1;
@@ -1598,6 +1598,24 @@ function PlayerManager({
     }
   };
 
+  const adjustStreak = async (userId: string, streakType: string | null, streakCount: number) => {
+    setAdjusting(userId);
+    try {
+      const batch = wb(dbInst);
+      const streakVal = streakType ? { type: streakType, count: Math.max(0, streakCount), lastMatchId: null } : { type: null, count: 0, lastMatchId: null };
+      batch.update(d(dbInst, 'users', userId), { streak: streakVal });
+      await batch.commit();
+      setPlayers(prev =>
+        prev.map(p => p.id === userId ? { ...p, streak: streakVal } : p)
+      );
+    } catch (e) {
+      console.error('Error adjusting streak:', e);
+      alert('Error al ajustar racha.');
+    } finally {
+      setAdjusting(null);
+    }
+  };
+
   if (loadingPlayers) {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-5 text-center text-xs text-zinc-500 animate-pulse">
@@ -1628,8 +1646,37 @@ function PlayerManager({
                 )}
               </div>
               <span className="text-sm font-semibold text-white truncate">{player.name}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                {player.streak?.type === 'exact' && (
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">E{player.streak.count}</span>
+                )}
+                {player.streak?.type === 'winner' && (
+                  <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">W{player.streak.count}</span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+              {/* Controles de racha */}
+              <div className="flex items-center gap-0.5 mr-1">
+                <button
+                  onClick={() => adjustStreak(player.id, 'exact', player.streak?.type === 'exact' ? (player.streak.count || 0) + 1 : 1)}
+                  disabled={adjusting === player.id}
+                  className="h-6 px-1.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[9px] font-bold transition-all disabled:opacity-40"
+                  title="+1 racha exacta"
+                >E+</button>
+                <button
+                  onClick={() => adjustStreak(player.id, 'winner', player.streak?.type === 'winner' ? (player.streak.count || 0) + 1 : 1)}
+                  disabled={adjusting === player.id}
+                  className="h-6 px-1.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 text-[9px] font-bold transition-all disabled:opacity-40"
+                  title="+1 racha ganadores"
+                >W+</button>
+                <button
+                  onClick={() => adjustStreak(player.id, null, 0)}
+                  disabled={adjusting === player.id}
+                  className="h-6 px-1.5 rounded bg-zinc-800 text-zinc-500 hover:bg-zinc-700 text-[9px] font-bold transition-all disabled:opacity-40"
+                  title="Resetear racha"
+                >R</button>
+              </div>
               <span className="text-sm font-black text-emerald-400 w-12 text-right">{player.points ?? 0}</span>
               <button
                 onClick={() => adjustPoints(player.id, -5)}
