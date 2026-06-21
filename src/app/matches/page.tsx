@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { MatchCard } from '@/components/MatchCard';
-import { Calendar, RefreshCw, AlertCircle } from 'lucide-react';
+import { Calendar, RefreshCw, AlertCircle, Play } from 'lucide-react';
 
 interface Match {
   id: string;
@@ -81,27 +81,28 @@ export default function MatchesPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Agrupar partidos por día
-  const groupMatchesByDay = (matchesList: Match[]) => {
-    const groups: Record<string, Match[]> = {};
-    matchesList.forEach((match) => {
-      // Formatear la fecha como "Lunes 22 de Junio" o similar
-      const d = new Date(match.date);
-      const dayLabel = d.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      });
-      // Capitalizar la primera letra
-      const capitalizedLabel = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
-      
-      if (!groups[capitalizedLabel]) {
-        groups[capitalizedLabel] = [];
-      }
-      groups[capitalizedLabel].push(match);
-    });
-    return groups;
-  };
+  // Separar partidos por día, solo hoy es apostable
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
+  const tomorrowStart = new Date(todayEnd);
+  const tomorrowEnd = new Date(tomorrowStart);
+  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+
+  const todayMatches = matches.filter(m => {
+    const d = new Date(m.date);
+    return d >= todayStart && d < todayEnd;
+  });
+  const tomorrowMatches = matches.filter(m => {
+    const d = new Date(m.date);
+    return d >= tomorrowStart && d < tomorrowEnd;
+  });
+  const futureMatches = matches.filter(m => {
+    const d = new Date(m.date);
+    return d >= tomorrowEnd;
+  });
 
   if (loading) {
     return (
@@ -126,8 +127,11 @@ export default function MatchesPage() {
     );
   }
 
-  const groupedMatches = groupMatchesByDay(matches);
-  const totalMatches = matches.length;
+  const sections: { key: string; label: string; icon: React.ReactNode; matches: Match[]; isBettable: boolean }[] = [
+    { key: 'today', label: 'Hoy', icon: <Play className="h-4 w-4" />, matches: todayMatches, isBettable: true },
+    { key: 'tomorrow', label: 'Mañana', icon: <Calendar className="h-4 w-4" />, matches: tomorrowMatches, isBettable: false },
+    { key: 'future', label: 'Próximos Partidos', icon: <Calendar className="h-4 w-4" />, matches: futureMatches, isBettable: false },
+  ];
 
   return (
     <div className="py-6 px-4 max-w-4xl mx-auto space-y-8 bg-zinc-950 text-white min-h-[85vh]">
@@ -136,15 +140,15 @@ export default function MatchesPage() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Partidos y Apuestas</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Ingresa tus predicciones de los goles para cada partido. Se cierran 5 minutos antes del partido.
+            Solo puedes apostar en los partidos de <strong className="text-emerald-400">Hoy</strong>. Los partidos futuros se cargan automáticamente para que los veas.
           </p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-2 text-center text-xs text-zinc-400 self-start sm:self-auto font-medium">
-          Total partidos: <span className="text-emerald-400 font-bold">{totalMatches}</span>
+          Total partidos: <span className="text-emerald-400 font-bold">{matches.length}</span>
         </div>
       </div>
 
-      {totalMatches === 0 ? (
+      {matches.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/10 p-12 text-center">
           <Calendar className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-zinc-300">No hay partidos creados</h3>
@@ -154,26 +158,37 @@ export default function MatchesPage() {
         </div>
       ) : (
         <div className="space-y-10">
-          {Object.entries(groupedMatches).map(([dayLabel, dayMatches]) => (
-            <div key={dayLabel} className="space-y-4">
-              <h2 className="text-lg font-black tracking-wide text-emerald-400 flex items-center gap-2 border-b border-zinc-800/40 pb-2">
-                <Calendar className="h-4 w-4" />
-                {dayLabel}
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {dayMatches.map((match) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    userBet={bets[match.id]}
-                    userId={user.uid}
-                    userName={profile.name}
-                    userPhoto={profile.photoURL}
-                  />
-                ))}
+          {sections.map(({ key, label, icon, matches: sectionMatches, isBettable }) => {
+            if (sectionMatches.length === 0) return null;
+            return (
+              <div key={key} className="space-y-4">
+                <h2 className={`text-lg font-black tracking-wide flex items-center gap-2 border-b pb-2 ${
+                  isBettable ? 'text-emerald-400 border-emerald-500/30' : 'text-zinc-300 border-zinc-800/40'
+                }`}>
+                  {icon}
+                  {label}
+                  <span className={`text-[10px] font-bold ml-1 px-1.5 py-0.5 rounded-full ${
+                    isBettable ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-500'
+                  }`}>{sectionMatches.length}</span>
+                  {!isBettable && (
+                    <span className="text-[10px] text-zinc-500 font-normal ml-auto">Pre-cargado (solo vista)</span>
+                  )}
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {sectionMatches.map((match) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      userBet={bets[match.id]}
+                      userId={user.uid}
+                      userName={profile.name}
+                      userPhoto={profile.photoURL}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

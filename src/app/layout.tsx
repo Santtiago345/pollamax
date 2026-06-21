@@ -4,6 +4,8 @@ import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { Navbar } from '@/components/Navbar';
 import AnimatedLayout from '@/components/AnimatedLayout';
+import { NotificationBanner } from '@/components/NotificationBanner';
+import { NotificationService } from '@/components/NotificationService';
 import { Analytics } from "@vercel/analytics/next"
 
 const geistSans = Geist({
@@ -42,6 +44,8 @@ export default function RootLayout({
           <footer className="py-6 border-t border-zinc-900 bg-black text-center text-xs text-zinc-500">
             &copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia Cocunubo-Neuta mundialista.
           </footer>
+          <NotificationService />
+          <NotificationBanner />
         </AuthProvider>
         <Analytics />
       </body>

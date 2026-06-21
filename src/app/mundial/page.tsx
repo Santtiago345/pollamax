@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { fetchWorldCupData, processMatches, calculateGroupStandings, detectMatchChanges, getSpanishName, type ProcessedMatch, type GroupStandings, type GroupTeamStats, type MatchChange } from '@/lib/worldCupData';
-import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, CheckCircle2, Clock, Play, MapPin, Bell } from 'lucide-react';
+import { RefreshCw, Globe, Calendar, BarChart3, Trophy, GitBranchPlus, CheckCircle2, Clock, Play, MapPin, Bell, Timer, Swords, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 
@@ -192,6 +192,14 @@ export default function MundialPage() {
         )}
       </AnimatePresence>
 
+      {/* Banner del próximo partido */}
+      {!loading && activeTab === 'today' && (
+        <NextMatchBanner
+          matches={matches}
+          onBet={() => window.location.href = '/matches'}
+        />
+      )}
+
       {/* Contenido de los Tabs */}
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center">
@@ -228,6 +236,136 @@ export default function MundialPage() {
 }
 
 // ============================================================
+// Hook de cuenta regresiva
+// ============================================================
+
+function useCountdown(targetDate: Date): string {
+  const [display, setDisplay] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+      if (diff <= 0) { setDisplay('Comenzando...'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setDisplay(`${h}h ${m}m ${s}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+
+  return display;
+}
+
+// ============================================================
+// Banner del próximo partido
+// ============================================================
+
+function NextMatchBanner({ matches, onBet }: { matches: ProcessedMatch[]; onBet: () => void }) {
+  const now = new Date();
+  const next = matches
+    .filter(m => m.status === 'scheduled' && new Date(m.date) > now)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+  if (!next) return null;
+
+  const matchTime = new Date(next.date);
+  const countdown = useCountdown(matchTime);
+  const diffMs = matchTime.getTime() - now.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const betDisabled = diffMin <= 5 || next.status !== 'scheduled';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-zinc-900/60 to-emerald-600/5 p-5 shadow-lg shadow-emerald-500/5"
+    >
+      <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-400 uppercase tracking-widest mb-3">
+        <Timer className="h-4 w-4" />
+        Próximo Partido
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        {/* Equipos */}
+        <div className="flex items-center gap-3 flex-1">
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-4xl">{next.teamAFlag}</span>
+            <span className="text-sm font-bold text-white">{getSpanishName(next.teamA)}</span>
+          </div>
+          <div className="flex flex-col items-center px-2">
+            <span className="text-lg font-black text-emerald-400">VS</span>
+            <span className="text-[10px] text-zinc-500">{next.round.replace('Matchday ', 'J')}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-4xl">{next.teamBFlag}</span>
+            <span className="text-sm font-bold text-white">{getSpanishName(next.teamB)}</span>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-2xl font-black font-mono text-emerald-300 tracking-wider tabular-nums">
+            {countdown}
+          </div>
+          <div className="text-xs text-zinc-400 flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {matchTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            {next.ground && <><MapPin className="h-3 w-3 ml-1" />{next.ground}</>}
+          </div>
+          <motion.button
+            whileHover={betDisabled ? {} : { scale: 1.03 }}
+            whileTap={betDisabled ? {} : { scale: 0.97 }}
+            onClick={betDisabled ? undefined : onBet}
+            disabled={betDisabled}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+              betDisabled
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+            }`}
+          >
+            <Swords className="h-4 w-4" />
+            {betDisabled ? 'Cerrado' : 'Apostar'}
+            <ChevronRight className="h-4 w-4" />
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================================
+// Componente MatchRow con colores y animación escalonada
+// ============================================================
+
+function StaggerMatchRow({ match, index }: { match: ProcessedMatch; index: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.04, ease: 'easeOut' }}
+    >
+      <MatchRow match={match} />
+    </motion.div>
+  );
+}
+
+function getStatusColor(match: ProcessedMatch): string {
+  if (match.status === 'live') return 'border-red-500/40 bg-red-500/8';
+  if (match.status === 'finished') return 'border-zinc-700/50 bg-zinc-900/30';
+  const matchDate = new Date(match.date);
+  const now = new Date();
+  const diffH = (matchDate.getTime() - now.getTime()) / 3600000;
+  if (diffH < 3) return 'border-emerald-500/30 bg-emerald-500/8';
+  if (diffH < 24) return 'border-amber-500/20 bg-amber-500/5';
+  return 'border-zinc-800/60 bg-zinc-900/10';
+}
+
+// ============================================================
 // Sub-componentes de Tabs
 // ============================================================
 
@@ -241,13 +379,7 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
   return (
     <motion.div
       layout
-      className={`rounded-xl border px-4 py-3.5 flex items-center justify-between gap-4 transition-all hover:border-zinc-700/60 ${
-        match.status === 'live'
-          ? 'border-red-500/30 bg-red-500/5'
-          : match.status === 'finished'
-            ? 'border-zinc-800/50 bg-zinc-900/20'
-            : 'border-zinc-800/80 bg-zinc-900/10'
-      }`}
+      className={`rounded-xl border px-4 py-3.5 flex items-center justify-between gap-4 transition-all hover:border-zinc-600/60 ${getStatusColor(match)}`}
     >
       {/* Equipo A */}
       <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
@@ -332,6 +464,16 @@ function MatchRow({ match }: { match: ProcessedMatch }) {
 function TodayTab({ todayMatches, liveMatches, upcomingMatches }: { todayMatches: ProcessedMatch[]; liveMatches: ProcessedMatch[]; upcomingMatches: ProcessedMatch[] }) {
   const allTodayAndLive = [...new Map([...liveMatches, ...todayMatches].map(m => [m.id, m])).values()];
 
+  // Agrupar próximos partidos por día
+  const groupedByDay: Record<string, ProcessedMatch[]> = {};
+  upcomingMatches.forEach(m => {
+    const d = new Date(m.date);
+    const key = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    const label = key.charAt(0).toUpperCase() + key.slice(1);
+    if (!groupedByDay[label]) groupedByDay[label] = [];
+    groupedByDay[label].push(m);
+  });
+
   return (
     <div className="space-y-8">
       {/* Partidos del día / en vivo */}
@@ -342,7 +484,7 @@ function TodayTab({ todayMatches, liveMatches, upcomingMatches }: { todayMatches
         </h2>
         {allTodayAndLive.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {allTodayAndLive.map(m => <MatchRow key={m.id} match={m} />)}
+            {allTodayAndLive.map((m, i) => <StaggerMatchRow key={m.id} match={m} index={i} />)}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
@@ -352,16 +494,23 @@ function TodayTab({ todayMatches, liveMatches, upcomingMatches }: { todayMatches
         )}
       </div>
 
-      {/* Próximos Partidos */}
-      {upcomingMatches.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-black text-white flex items-center gap-2 pb-2 border-b border-zinc-800/60">
-            <Clock className="h-5 w-5 text-emerald-400" />
-            Próximos Partidos
+      {/* Todos los Próximos Partidos agrupados por día */}
+      {Object.entries(groupedByDay).map(([dayLabel, dayMatches]) => (
+        <div key={dayLabel} className="space-y-3">
+          <h2 className="text-sm font-black text-emerald-400 flex items-center gap-2 pb-2 border-b border-zinc-800/60 uppercase tracking-wider">
+            <Calendar className="h-4 w-4" />
+            {dayLabel}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {upcomingMatches.map(m => <MatchRow key={m.id} match={m} />)}
+            {dayMatches.map((m, i) => <StaggerMatchRow key={m.id} match={m} index={i} />)}
           </div>
+        </div>
+      ))}
+
+      {Object.keys(groupedByDay).length === 0 && allTodayAndLive.length === 0 && (
+        <div className="rounded-xl border border-dashed border-zinc-800 p-12 text-center text-zinc-500">
+          <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No hay partidos programados. Vuelve más tarde.</p>
         </div>
       )}
     </div>

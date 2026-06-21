@@ -6,8 +6,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { COUNTRIES } from '@/lib/countries';
-import { Check, X, Camera, Loader2 } from 'lucide-react';
+import { Check, X, Camera, Loader2, Bell, BellOff, Users, TrendingUp, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DEFAULT_NOTIFICATION_SETTINGS, type NotificationSettings } from '@/lib/notifications';
 
 export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { user, profile } = useAuth();
@@ -17,6 +18,7 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -24,6 +26,10 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
       setName(profile.name || '');
       setCountry((profile as any).country || '');
       setPreview((profile as any).photoURL || null);
+      const prefs = (profile as any).notificationPreferences;
+      if (prefs) {
+        setNotifPrefs({ ...DEFAULT_NOTIFICATION_SETTINGS, ...prefs });
+      }
     }
   }, [profile]);
 
@@ -45,7 +51,7 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
     setUploadProgress(false);
     try {
       const userRef = doc(db, 'users', user.uid);
-      const updates: any = { name, country };
+      const updates: any = { name, country, notificationPreferences: notifPrefs };
 
       if (file) {
         setUploadProgress(true);
@@ -158,6 +164,41 @@ export const UserSettings: React.FC<{ open: boolean; onClose: () => void }> = ({
                 <option key={c.code} value={c.name}>{c.flag} {c.name}</option>
               ))}
             </select>
+          </div>
+
+          {/* Notificaciones */}
+          <div>
+            <h4 className="text-xs text-zinc-400 font-semibold mb-2 flex items-center gap-1.5">
+              <Bell className="h-3.5 w-3.5" /> Notificaciones
+            </h4>
+            <div className="space-y-2 rounded-xl bg-zinc-950/50 border border-zinc-800/50 p-3">
+              {[
+                { key: 'matchReminders' as const, label: 'Recordatorios de partidos', desc: '1h, 30min y 10min antes de cada partido', icon: <BellOff className="h-3.5 w-3.5" /> },
+                { key: 'otherBets' as const, label: 'Apuestas de otros jugadores', desc: 'Cuando alguien apuesta en un partido', icon: <Users className="h-3.5 w-3.5" /> },
+                { key: 'streaks' as const, label: 'Rachas conseguidas', desc: 'Cuando un jugador logra una racha', icon: <TrendingUp className="h-3.5 w-3.5" /> },
+                { key: 'newPlayers' as const, label: 'Nuevos jugadores', desc: 'Cuando alguien nuevo se une a la polla', icon: <UserPlus className="h-3.5 w-3.5" /> },
+              ].map(({ key, label, desc, icon }) => (
+                <label key={key} className="flex items-center gap-3 cursor-pointer group">
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                    notifPrefs[key] ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 group-hover:border-zinc-500'
+                  }`}>
+                    {notifPrefs[key] && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-zinc-300 flex items-center gap-1">
+                      {icon} {label}
+                    </div>
+                    <div className="text-[10px] text-zinc-500">{desc}</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifPrefs[key]}
+                    onChange={() => setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }))}
+                    className="hidden"
+                  />
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="text-xs text-zinc-500 bg-zinc-950/50 rounded-xl p-3 border border-zinc-800/50">
