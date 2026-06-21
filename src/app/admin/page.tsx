@@ -19,7 +19,8 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download } from 'lucide-react';
+import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download, Bell, BellRing, BellOff, Users, TrendingUp, UserPlus } from 'lucide-react';
+import { sendBrowserNotification } from '@/lib/notifications';
 
 interface Match {
   id: string;
@@ -717,6 +718,74 @@ export default function AdminPage() {
 
         {/* Lista de Partidos Existentes */}
         <div className="lg:col-span-2 space-y-4">
+          {/* NOTA: Sección de Prueba de Notificaciones */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-white border-b border-zinc-800/80 pb-2">
+              <Bell className="h-5 w-5 text-purple-400" />
+              Probar Notificaciones
+            </h3>
+            <p className="text-xs text-zinc-500">Haz clic en los botones para enviar una notificación de prueba. Debes aceptar las notificaciones en tu navegador primero.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                onClick={() => {
+                  if (!('Notification' in window) || Notification.permission !== 'granted') {
+                    alert('Primero acepta las notificaciones en el banner que aparece en la pantalla.');
+                    return;
+                  }
+                  sendBrowserNotification('🔔 Recordatorio', 'Queda 1 hora para Argentina vs Brasil. ¡No olvides apostar!');
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-all"
+              >
+                <BellRing className="h-5 w-5" />
+                Recordatorio
+              </button>
+              <button
+                onClick={() => {
+                  if (!('Notification' in window) || Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification('📊 Apuesta registrada', 'María apostó 2-1 en Alemania vs Francia.');
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-3 text-xs font-semibold text-cyan-400 hover:bg-cyan-500/10 transition-all"
+              >
+                <Users className="h-5 w-5" />
+                Apuesta
+              </button>
+              <button
+                onClick={() => {
+                  if (!('Notification' in window) || Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification('🔥 Racha', 'Pedro lleva 4 aciertos consecutivos en Marcadores Exactos!');
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-orange-500/20 bg-orange-500/5 px-3 py-3 text-xs font-semibold text-orange-400 hover:bg-orange-500/10 transition-all"
+              >
+                <TrendingUp className="h-5 w-5" />
+                Racha
+              </button>
+              <button
+                onClick={() => {
+                  if (!('Notification' in window) || Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification('👋 Nuevo jugador', 'Carlos se unió a la PollaMax. ¡Dale la bienvenida!');
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-green-500/20 bg-green-500/5 px-3 py-3 text-xs font-semibold text-green-400 hover:bg-green-500/10 transition-all"
+              >
+                <UserPlus className="h-5 w-5" />
+                Nuevo Jugador
+              </button>
+            </div>
+            <button
+              onClick={async () => {
+                if (!('Notification' in window)) { alert('Tu navegador no soporta notificaciones.'); return; }
+                const perm = await Notification.requestPermission();
+                if (perm === 'granted') {
+                  sendBrowserNotification('✅ Notificaciones activadas', 'Ahora recibirás notificaciones de PollaMax.');
+                } else {
+                  alert('Permiso denegado. Actívalo manualmente en la configuración del navegador.');
+                }
+              }}
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-xs font-bold text-zinc-300 hover:bg-zinc-700 transition-all"
+            >
+              Solicitar permiso de notificaciones
+            </button>
+          </div>
+
           <h3 className="text-xl font-bold flex items-center gap-2 text-white border-b border-zinc-800 pb-3">
             <Star className="h-5 w-5 text-emerald-400" />
             Lista de Partidos ({matches.length})

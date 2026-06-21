@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { MatchCard } from '@/components/MatchCard';
-import { Calendar, RefreshCw, AlertCircle, Play } from 'lucide-react';
+import { Calendar, RefreshCw, AlertCircle, Play, Globe } from 'lucide-react';
 
 interface Match {
   id: string;
@@ -35,6 +35,8 @@ export default function MatchesPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [bets, setBets] = useState<Record<string, Bet>>({});
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncAttempted, setSyncAttempted] = useState(false);
 
   // 1. Escuchar partidos en tiempo real
   useEffect(() => {
@@ -48,6 +50,17 @@ export default function MatchesPage() {
         });
         setMatches(matchesList);
         setLoading(false);
+
+        // Si no hay partidos, disparar sincronización automática una sola vez
+        if (matchesList.length === 0 && !syncAttempted && !syncing) {
+          setSyncAttempted(true);
+          setSyncing(true);
+          fetch('/api/world-cup-sync')
+            .then(res => res.json())
+            .then(data => console.log('Auto-sync:', data.message))
+            .catch(err => console.error('Auto-sync error:', err))
+            .finally(() => setSyncing(false));
+        }
       },
       (error) => {
         console.error('Error fetching matches:', error);
@@ -56,7 +69,7 @@ export default function MatchesPage() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [syncAttempted, syncing]);
 
   // 2. Escuchar apuestas del usuario en tiempo real
   useEffect(() => {
@@ -150,11 +163,23 @@ export default function MatchesPage() {
 
       {matches.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/10 p-12 text-center">
-          <Calendar className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-zinc-300">No hay partidos creados</h3>
-          <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
-            El administrador del torneo aún no ha cargado partidos. Vuelve a consultar más tarde para hacer tus predicciones.
-          </p>
+          {syncing ? (
+            <>
+              <RefreshCw className="h-12 w-12 text-emerald-400 mx-auto mb-4 animate-spin" />
+              <h3 className="text-xl font-bold text-zinc-300">Sincronizando partidos...</h3>
+              <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
+                Estamos cargando automáticamente los partidos del Mundial 2026 desde la fuente oficial. Un momento...
+              </p>
+            </>
+          ) : (
+            <>
+              <Globe className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-zinc-300">No hay partidos disponibles</h3>
+              <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
+                No se pudieron cargar los partidos automáticamente. El administrador debe sincronizar desde el panel de control.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-10">
