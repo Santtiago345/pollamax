@@ -882,6 +882,9 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Gestión de Jugadores */}
+          <PlayerManager db={db} writeBatch={writeBatch} increment={increment} doc={doc} getDocs={getDocs} collection={collection} />
+
           <h3 className="text-xl font-bold flex items-center gap-2 text-white border-b border-zinc-800 pb-3">
             <Star className="h-5 w-5 text-emerald-400" />
             Lista de Partidos ({matches.length})
@@ -1022,6 +1025,141 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Componente de gestión de jugadores con +/- puntos
+function PlayerManager({
+  db: dbInst,
+  writeBatch: wb,
+  increment: inc,
+  doc: d,
+  getDocs: gd,
+  collection: col,
+}: {
+  db: any;
+  writeBatch: any;
+  increment: any;
+  doc: any;
+  getDocs: any;
+  collection: any;
+}) {
+  const [players, setPlayers] = useState<any[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(true);
+  const [adjusting, setAdjusting] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await gd(col(dbInst, 'users'));
+        const list = snap.docs
+          .map((d: any) => ({ id: d.id, ...d.data() }))
+          .sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
+        setPlayers(list);
+      } catch (e) {
+        console.error('Error loading players:', e);
+      } finally {
+        setLoadingPlayers(false);
+      }
+    };
+    load();
+  }, [dbInst, col, gd]);
+
+  const adjustPoints = async (userId: string, amount: number) => {
+    setAdjusting(userId);
+    try {
+      const batch = wb(dbInst);
+      batch.update(d(dbInst, 'users', userId), { points: inc(amount) });
+      await batch.commit();
+      setPlayers(prev =>
+        prev.map(p =>
+          p.id === userId ? { ...p, points: (p.points || 0) + amount } : p
+        ).sort((a: any, b: any) => (b.points || 0) - (a.points || 0))
+      );
+    } catch (e) {
+      console.error('Error adjusting points:', e);
+      alert('Error al ajustar puntos.');
+    } finally {
+      setAdjusting(null);
+    }
+  };
+
+  if (loadingPlayers) {
+    return (
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-5 text-center text-xs text-zinc-500 animate-pulse">
+        Cargando jugadores...
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-3">
+      <h3 className="text-lg font-bold flex items-center gap-2 text-white border-b border-zinc-800/80 pb-2">
+        <Users className="h-5 w-5 text-blue-400" />
+        Gestión de Jugadores ({players.length})
+      </h3>
+      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+        {players.map((player, idx) => (
+          <div
+            key={player.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/20 px-4 py-2.5"
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-xs font-bold text-zinc-500 w-5 text-center shrink-0">#{idx + 1}</span>
+              <div className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center shrink-0">
+                {player.photoURL ? (
+                  <img src={player.photoURL} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-[9px] text-zinc-400">{player.name?.slice(0, 2).toUpperCase()}</span>
+                )}
+              </div>
+              <span className="text-sm font-semibold text-white truncate">{player.name}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-sm font-black text-emerald-400 w-12 text-right">{player.points ?? 0}</span>
+              <button
+                onClick={() => adjustPoints(player.id, -5)}
+                disabled={adjusting === player.id}
+                className="h-8 w-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 font-bold text-sm flex items-center justify-center transition-all disabled:opacity-40"
+                title="Restar 5 puntos"
+              >
+                −5
+              </button>
+              <button
+                onClick={() => adjustPoints(player.id, -1)}
+                disabled={adjusting === player.id}
+                className="h-8 w-8 rounded-lg bg-red-500/5 border border-red-500/10 text-red-400/70 hover:bg-red-500/15 font-bold text-sm flex items-center justify-center transition-all disabled:opacity-40"
+                title="Restar 1 punto"
+              >
+                −1
+              </button>
+              <button
+                onClick={() => adjustPoints(player.id, 1)}
+                disabled={adjusting === player.id}
+                className="h-8 w-8 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-emerald-400/70 hover:bg-emerald-500/15 font-bold text-sm flex items-center justify-center transition-all disabled:opacity-40"
+                title="Sumar 1 punto"
+              >
+                +1
+              </button>
+              <button
+                onClick={() => adjustPoints(player.id, 5)}
+                disabled={adjusting === player.id}
+                className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 font-bold text-sm flex items-center justify-center transition-all disabled:opacity-40"
+                title="Sumar 5 puntos"
+              >
+                +5
+              </button>
+              {adjusting === player.id && (
+                <RefreshCw className="h-4 w-4 animate-spin text-zinc-500" />
+              )}
+            </div>
+          </div>
+        ))}
+        {players.length === 0 && (
+          <div className="text-center py-6 text-zinc-500 text-sm">No hay jugadores registrados.</div>
+        )}
       </div>
     </div>
   );

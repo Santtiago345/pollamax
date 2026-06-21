@@ -6,6 +6,8 @@ import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { MatchCard } from '@/components/MatchCard';
 import { Calendar, RefreshCw, AlertCircle, Play, Globe } from 'lucide-react';
+import { fetchWorldCupData, processMatches, getSpanishName, type ProcessedMatch } from '@/lib/worldCupData';
+import { motion } from 'framer-motion';
 
 interface Match {
   id: string;
@@ -30,71 +32,55 @@ interface Bet {
   processed: boolean;
 }
 
+function apiMatchToMatchCard(m: ProcessedMatch): Match {
+  return {
+    id: m.id,
+    teamA: getSpanishName(m.teamA),
+    teamB: getSpanishName(m.teamB),
+    teamAFlag: m.teamAFlag,
+    teamBFlag: m.teamBFlag,
+    date: m.date,
+    scoreA: m.scoreA,
+    scoreB: m.scoreB,
+    status: m.status,
+  };
+}
+
 export default function MatchesPage() {
   const { user, profile } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [bets, setBets] = useState<Record<string, Bet>>({});
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [retrying, setRetrying] = useState(false);
-  const syncKeyRef = useRef<string | null>(null);
+  const [apiLoading, setApiLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const apiFetchedRef = useRef(false);
 
-  // 1. Auto-sync al montar si no hay partidos
+  // 1. Cargar partidos desde OpenFootball API (como la página mundial)
   useEffect(() => {
-    const checkAndSync = async () => {
-      // Evitar sincronizar repetido (sessionStorage)
-      const lastSync = sessionStorage.getItem('autoSyncDone');
-      if (lastSync === 'true') return;
+    if (apiFetchedRef.current) return;
+    apiFetchedRef.current = true;
 
+    const loadFromAPI = async () => {
       try {
-        const res = await fetch('/api/world-cup-sync');
-        const data = await res.json();
-        console.log('Auto-sync:', data.message);
-        if (data.status === 'success') {
-          sessionStorage.setItem('autoSyncDone', 'true');
-          // Si la API devolvió partidos, refrescar cada 5 min
-          setTimeout(() => sessionStorage.removeItem('autoSyncDone'), 300000);
+        const raw = await fetchWorldCupData();
+        if (raw && raw.matches) {
+          const processed = processMatches(raw.matches);
+          const mapped = processed.map(apiMatchToMatchCard);
+          setMatches(mapped);
+        } else {
+          setError('No se pudieron obtener datos del Mundial.');
         }
-      } catch (err) {
-        console.error('Auto-sync error:', err);
+      } catch (e) {
+        console.error('Error loading from API:', e);
+        setError('Error al conectar con la fuente de datos.');
+      } finally {
+        setApiLoading(false);
+        setLoading(false);
       }
     };
 
-    checkAndSync();
+    loadFromAPI();
   }, []);
-
-  // 2. Escuchar partidos en tiempo real
-  useEffect(() => {
-    const q = query(collection(db, 'matches'), orderBy('date', 'asc'));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const matchesList: Match[] = [];
-        snapshot.forEach((doc) => {
-          matchesList.push({ id: doc.id, ...doc.data() } as Match);
-        });
-        setMatches(matchesList);
-        setLoading(false);
-
-        // Si aún no hay partidos tras sincronizar, reintentar
-        if (matchesList.length === 0 && !syncing && !syncKeyRef.current) {
-          setRetrying(true);
-          syncKeyRef.current = 'attempted';
-          fetch('/api/world-cup-sync')
-            .then(res => res.json())
-            .then(data => console.log('Retry sync:', data.message))
-            .catch(err => console.error('Retry sync error:', err))
-            .finally(() => setRetrying(false));
-        }
-      },
-      (error) => {
-        console.error('Error fetching matches:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [syncing]);
 
   // 2. Escuchar apuestas del usuario en tiempo real
   useEffect(() => {
@@ -119,7 +105,7 @@ export default function MatchesPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Separar partidos por día, solo hoy es apostable
+  // Separar partidos por día
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(todayStart);
@@ -142,7 +128,7 @@ export default function MatchesPage() {
     return d >= tomorrowEnd;
   });
 
-  if (loading) {
+  if (loading || apiLoading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-zinc-950 text-white">
         <div className="flex flex-col items-center gap-3">
@@ -178,7 +164,7 @@ export default function MatchesPage() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Partidos y Apuestas</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Solo puedes apostar en los partidos de <strong className="text-emerald-400">Hoy</strong>. Los partidos futuros se cargan automáticamente para que los veas.
+            Solo puedes apostar en los partidos de <strong className="text-emerald-400">Hoy</strong>. Los partidos futuros se cargan automáticamente.
           </p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-2 text-center text-xs text-zinc-400 self-start sm:self-auto font-medium">
@@ -186,32 +172,33 @@ export default function MatchesPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-400 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
       {matches.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/10 p-12 text-center">
-          {retrying ? (
-            <>
-              <RefreshCw className="h-12 w-12 text-emerald-400 mx-auto mb-4 animate-spin" />
-              <h3 className="text-xl font-bold text-zinc-300">Sincronizando partidos...</h3>
-              <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
-                Estamos cargando automáticamente los partidos del Mundial 2026. Un momento...
-              </p>
-            </>
-          ) : (
-            <>
-              <Globe className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-zinc-300">No hay partidos disponibles</h3>
-              <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
-                {loading ? 'Cargando partidos...' : 'No se pudieron cargar los partidos automáticamente. El administrador debe sincronizar desde el panel de control.'}
-              </p>
-            </>
-          )}
+          <Globe className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-zinc-300">No hay partidos disponibles</h3>
+          <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
+            No se pudieron cargar partidos. Intenta recargar la página o contacta al administrador.
+          </p>
         </div>
       ) : (
         <div className="space-y-10">
           {sections.map(({ key, label, icon, matches: sectionMatches, isBettable }) => {
             if (sectionMatches.length === 0) return null;
             return (
-              <div key={key} className="space-y-4">
+              <motion.div
+                key={key}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
                 <h2 className={`text-lg font-black tracking-wide flex items-center gap-2 border-b pb-2 ${
                   isBettable ? 'text-emerald-400 border-emerald-500/30' : 'text-zinc-300 border-zinc-800/40'
                 }`}>
@@ -225,18 +212,24 @@ export default function MatchesPage() {
                   )}
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {sectionMatches.map((match) => (
-                    <MatchCard
+                  {sectionMatches.map((match, i) => (
+                    <motion.div
                       key={match.id}
-                      match={match}
-                      userBet={bets[match.id]}
-                      userId={user.uid}
-                      userName={profile.name}
-                      userPhoto={profile.photoURL}
-                    />
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: i * 0.03 }}
+                    >
+                      <MatchCard
+                        match={match}
+                        userBet={bets[match.id]}
+                        userId={user.uid}
+                        userName={profile.name}
+                        userPhoto={profile.photoURL}
+                      />
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

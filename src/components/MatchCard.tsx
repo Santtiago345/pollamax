@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { isBetLocked, calculatePoints } from '@/lib/rules';
 import { Lock, Unlock, Check, RefreshCw, AlertCircle } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
+import { playBetSound, initAudio } from '@/lib/sounds';
 
 interface Match {
   id: string;
@@ -103,6 +104,10 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
         message: `${userName} apostó ${goalA}-${goalB} en ${match.teamA} vs ${match.teamB}`,
         timestamp: new Date().toISOString(),
       });
+
+      // Sonido de apuesta exitosa
+      initAudio();
+      playBetSound();
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

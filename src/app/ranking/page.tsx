@@ -9,6 +9,7 @@ import StreakBadge from '@/components/StreakBadge';
 import { getFlagByCountryName } from '@/lib/countries';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
+import { playPodiumRiseSound, playRankChangeSound, initAudio } from '@/lib/sounds';
 
 interface UserProfile {
   uid: string;
@@ -87,10 +88,21 @@ export default function RankingPage() {
   // Activar animación de entrada después de cargar
   useEffect(() => {
     if (!loading && users.length > 0) {
-      const timer = setTimeout(() => setAnimPlayed(true), 100);
+      initAudio();
+      const timer = setTimeout(() => {
+        setAnimPlayed(true);
+        playPodiumRiseSound();
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [loading, users.length]);
+
+  // Sonido cuando cambian posiciones
+  useEffect(() => {
+    if (animTrigger > 0) {
+      playRankChangeSound();
+    }
+  }, [animTrigger]);
 
   if (loading) {
     return (
