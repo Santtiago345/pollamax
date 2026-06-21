@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import {
   User,
   signInWithPopup,
@@ -44,21 +44,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const creatingProfile = useRef(false);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        // Enlazar datos del perfil del usuario de Firestore en tiempo real
+  // Enlazar datos del perfil del usuario de Firestore en tiempo real
         const userRef = doc(db, 'users', firebaseUser.uid);
-        
+
         const unsubscribeProfile = onSnapshot(userRef,
           async (docSnap) => {
           if (docSnap.exists()) {
+            creatingProfile.current = false;
             setProfile(docSnap.data() as UserProfile);
-          } else {
-            // Si el documento de perfil no existe en Firestore, lo creamos
+            setLoading(false);
+          } else if (!creatingProfile.current) {
+            creatingProfile.current = true;
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario Sin Nombre',
@@ -68,24 +71,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               photoURL: firebaseUser.photoURL || '',
               country: '',
             };
-            await setDoc(userRef, { ...newProfile, joinedAt: new Date().toISOString(), welcomeSeen: false });
-
-            // Registrar en el feed de actividad
             try {
-              await addDoc(collection(db, 'history'), {
-                userId: firebaseUser.uid,
-                userName: newProfile.name,
-                userPhoto: newProfile.photoURL || null,
-                message: `🎉 ${newProfile.name} se unió a la PollaMax`,
-                timestamp: new Date().toISOString(),
-              });
+              await setDoc(userRef, { ...newProfile, joinedAt: new Date().toISOString(), welcomeSeen: false });
+
+              // Registrar en el feed de actividad
+              try {
+                await addDoc(collection(db, 'history'), {
+                  userId: firebaseUser.uid,
+                  userName: newProfile.name,
+                  userPhoto: newProfile.photoURL || null,
+                  message: `🎉 ${newProfile.name} se unió a la PollaMax`,
+                  timestamp: new Date().toISOString(),
+                });
+              } catch (e) {
+                console.error('Error creating history entry:', e);
+              }
             } catch (e) {
-              console.error('Error creating history entry:', e);
+              console.error('Error creating user profile:', e);
             }
 
             setProfile(newProfile);
+            setLoading(false);
           }
-          setLoading(false);
         },
         (error) => {
           console.error('Error reading user profile:', error);

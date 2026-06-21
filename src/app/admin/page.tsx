@@ -583,6 +583,8 @@ export default function AdminPage() {
 
   const handleClearAllFeed = async () => {
     if (!window.confirm('¿Eliminar TODAS las entradas del feed? Esto no se puede deshacer.')) return;
+    const code = prompt('⚠️  PELIGRO: Escribe "CONFIRMAR" para eliminar TODAS las entradas del feed:');
+    if (code !== 'CONFIRMAR') { alert('Operación cancelada.'); return; }
     setFeedLoading(true);
     try {
       const snap = await getDocs(collection(db, 'history'));
@@ -615,6 +617,8 @@ export default function AdminPage() {
 
   const handleClearBetsForMatch = async (matchId: string) => {
     if (!window.confirm(`¿Eliminar TODAS las apuestas del partido "${matchId}"? Esto no se puede deshacer.`)) return;
+    const code = prompt('⚠️  PELIGRO: Escribe "CONFIRMAR" para eliminar TODAS las apuestas de este partido:');
+    if (code !== 'CONFIRMAR') { alert('Operación cancelada.'); return; }
     setBetsLoading(true);
     try {
       const q = query(collection(db, 'bets'), where('matchId', '==', matchId));
@@ -717,6 +721,8 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!window.confirm(`¿Eliminar al usuario "${userName}" (${userId}) permanentemente? También se eliminarán sus apuestas.`)) return;
+    const code = prompt(`⚠️  PELIGRO: Escribe "CONFIRMAR" para eliminar a "${userName}":`);
+    if (code !== 'CONFIRMAR') { alert('Operación cancelada.'); return; }
     setUserActionLoading(userId);
     try {
       const batch = writeBatch(db);
