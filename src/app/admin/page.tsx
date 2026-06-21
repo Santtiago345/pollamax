@@ -1616,6 +1616,22 @@ function PlayerManager({
     }
   };
 
+  const handleResetWelcome = async (userId: string, userName: string) => {
+    if (!window.confirm(`¿Resetear bienvenida para "${userName}"? Así le aparecerá la pantalla de bienvenida de nuevo.`)) return;
+    setAdjusting(userId);
+    try {
+      const batch = wb(dbInst);
+      batch.update(d(dbInst, 'users', userId), { welcomeSeen: false, joinedAt: new Date().toISOString() });
+      await batch.commit();
+      alert(`Bienvenida reseteada para ${userName}.`);
+    } catch (e) {
+      console.error('Error resetting welcome:', e);
+      alert('Error al resetear bienvenida.');
+    } finally {
+      setAdjusting(null);
+    }
+  };
+
   if (loadingPlayers) {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-5 text-center text-xs text-zinc-500 animate-pulse">
@@ -1676,6 +1692,12 @@ function PlayerManager({
                   className="h-6 px-1.5 rounded bg-zinc-800 text-zinc-500 hover:bg-zinc-700 text-[9px] font-bold transition-all disabled:opacity-40"
                   title="Resetear racha"
                 >R</button>
+                <button
+                  onClick={() => handleResetWelcome(player.id, player.name)}
+                  disabled={adjusting === player.id}
+                  className="h-6 px-1.5 rounded bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 text-[9px] font-bold transition-all disabled:opacity-40"
+                  title="Resetear bienvenida"
+                >👋</button>
               </div>
               <span className="text-sm font-black text-emerald-400 w-12 text-right">{player.points ?? 0}</span>
               <button

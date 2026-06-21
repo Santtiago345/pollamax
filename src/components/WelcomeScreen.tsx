@@ -12,15 +12,15 @@ export function WelcomeScreen() {
   const { user, profile } = useAuth();
   const [show, setShow] = useState(false);
   const musicPlayed = useRef(false);
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
     if (!user || !profile) { setShow(false); return; }
+    if (dismissedRef.current) return;
 
-    // Mostrar solo para usuarios nuevos (sin welcomeSeen)
     const isNewUser = (profile as any).joinedAt && !(profile as any).welcomeSeen;
 
     if (isNewUser) {
-      // Pequeño delay para que el layout cargue primero
       const timer = setTimeout(() => {
         setShow(true);
       }, 600);
@@ -31,6 +31,7 @@ export function WelcomeScreen() {
   }, [user, profile]);
 
   const handleDismiss = async () => {
+    dismissedRef.current = true;
     setShow(false);
     if (!user) return;
     try {
@@ -45,10 +46,6 @@ export function WelcomeScreen() {
       musicPlayed.current = true;
       initAudio();
       setTimeout(() => playWelcomeSound(), 200);
-    }
-    if (!show) {
-      // Reset cuando se cierra (por si se vuelve a mostrar)
-      musicPlayed.current = false;
     }
   }, [show]);
 

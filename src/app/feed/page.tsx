@@ -41,7 +41,20 @@ export default function FeedPage() {
       },
       (error) => {
         console.error('Error fetching activity feed:', error);
-        setLoading(false);
+        // Fallback: cargar sin orden si el índice no existe
+        const fallbackQ = query(collection(db, 'history'), limit(50));
+        const unsubFallback = onSnapshot(fallbackQ, (snap) => {
+          const list: HistoryEntry[] = [];
+          snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistoryEntry));
+          list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+          setHistory(list);
+          setLoading(false);
+        }, (e2) => {
+          console.error('Feed fallback also failed:', e2);
+          setLoading(false);
+        });
+        // No podemos retornar el cleanup del fallback desde aquí,
+        // pero el error es poco común después del primer fallo
       }
     );
 

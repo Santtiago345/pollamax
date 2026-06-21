@@ -65,7 +65,7 @@ export default function RankingPage() {
   const [animPlayed, setAnimPlayed] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), orderBy('points', 'desc'), orderBy('name', 'asc'));
+    const q = query(collection(db, 'users'), orderBy('points', 'desc'));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -73,6 +73,8 @@ export default function RankingPage() {
         snapshot.forEach((doc) => {
           usersList.push({ uid: doc.id, ...(doc.data() as any) } as UserProfile);
         });
+        // Orden alfabético local para empates
+        usersList.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
         setUsers(usersList);
         setLoading(false);
       },
