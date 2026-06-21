@@ -34,6 +34,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  firestoreBlocked: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -44,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [firestoreBlocked, setFirestoreBlocked] = useState(false);
   const creatingProfile = useRef(false);
 
   useEffect(() => {
@@ -58,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           async (docSnap) => {
           if (docSnap.exists()) {
             creatingProfile.current = false;
+            setFirestoreBlocked(false);
             setProfile(docSnap.data() as UserProfile);
             setLoading(false);
           } else if (!creatingProfile.current) {
@@ -88,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             } catch (e) {
               console.error('Error creating user profile:', e);
+              setFirestoreBlocked(true);
             }
 
             setProfile(newProfile);
@@ -96,13 +100,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         (error) => {
           console.error('Error reading user profile:', error);
-          setProfile(null);
+          // Fallback: crear perfil local aunque Firestore esté bloqueado
+          const fallbackProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario Sin Nombre',
+            email: firebaseUser.email || '',
+            points: 0,
+            isAdmin: false,
+            photoURL: firebaseUser.photoURL || '',
+            country: '',
+          };
+          setFirestoreBlocked(true);
+          creatingProfile.current = false;
+          setProfile(fallbackProfile);
           setLoading(false);
         });
 
         return () => unsubscribeProfile();
       } else {
         setProfile(null);
+        setFirestoreBlocked(false);
         setLoading(false);
       }
     });
@@ -134,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, firestoreBlocked, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

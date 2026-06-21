@@ -7,6 +7,7 @@ import AnimatedLayout from '@/components/AnimatedLayout';
 import { NotificationBanner } from '@/components/NotificationBanner';
 import { NotificationService } from '@/components/NotificationService';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
+import { FirestoreBlockedBanner } from '@/components/FirestoreBlockedBanner';
 import { Analytics } from "@vercel/analytics/next"
 import Link from 'next/link';
 
@@ -37,6 +38,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-zinc-950 text-white selection:bg-emerald-500/30 selection:text-emerald-300">
         <AuthProvider>
+          <FirestoreBlockedBanner />
           <Navbar />
           <main className="flex-1 w-full relative z-10">
             <AnimatedLayout>

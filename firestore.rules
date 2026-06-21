@@ -1,0 +1,65 @@
+rules_version = '3';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Usuarios: lectura pública, escritura controlada
+    match /users/{userId} {
+      allow read: if true;
+
+      // CUALQUIER usuario autenticado puede crear su PROPIO documento
+      // Esto evita el bloqueo donde solo admin puede crear usuarios
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // El propio usuario puede editar su perfil (excepto puntos y admin)
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'isAdmin']);
+
+      // Admin puede editar cualquier campo de cualquier usuario
+      allow update: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+
+      // Solo admin puede eliminar usuarios
+      allow delete: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Apuestas: lectura pública, escritura autenticada
+    match /bets/{betId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Partidos: solo admin escribe
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Historial: lectura pública, escritura autenticada
+    match /history/{entryId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Colecciones de cache/config: solo admin escribe
+    match /worldCupCache/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+  }
+}
