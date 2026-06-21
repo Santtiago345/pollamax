@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { Trophy, Star, ShieldCheck, Flame, LogIn, Swords, ClipboardList, ListOrdered, Calendar } from 'lucide-react';
+import { Trophy, Star, ShieldCheck, Flame, LogIn, Swords, ClipboardList, ListOrdered, Calendar, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
@@ -141,9 +141,13 @@ export default function Home() {
           className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-emerald-500/50 hover:bg-zinc-900/60 transition-all duration-300"
         >
           <div className="flex items-center justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+            <motion.div
+              animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.08, 1.08, 1] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-all"
+            >
               <Swords className="h-6 w-6" />
-            </div>
+            </motion.div>
             <span className="text-xs font-semibold text-zinc-500 group-hover:text-emerald-400 transition-all">Ir a apostar &rarr;</span>
           </div>
           <h3 className="mt-4 text-xl font-bold text-white">Pronósticos de Partidos</h3>
@@ -158,9 +162,13 @@ export default function Home() {
           className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-amber-500/50 hover:bg-zinc-900/60 transition-all duration-300"
         >
           <div className="flex items-center justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition-all">
+            <motion.div
+              animate={{ y: [0, -4, 0, 4, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition-all"
+            >
               <ListOrdered className="h-6 w-6" />
-            </div>
+            </motion.div>
             <span className="text-xs font-semibold text-zinc-500 group-hover:text-amber-400 transition-all">Ver posiciones &rarr;</span>
           </div>
           <h3 className="mt-4 text-xl font-bold text-white">Tabla de Posiciones</h3>
@@ -169,20 +177,24 @@ export default function Home() {
           </p>
         </Link>
 
-        {/* Podio final */}
+        {/* Mundial */}
         <Link
-          href="/podium"
+          href="/mundial"
           className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-purple-500/50 hover:bg-zinc-900/60 transition-all duration-300"
         >
           <div className="flex items-center justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-all">
-              <Trophy className="h-6 w-6" />
-            </div>
-            <span className="text-xs font-semibold text-zinc-500 group-hover:text-purple-400 transition-all">Elegir Campeón &rarr;</span>
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1.1, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-all"
+            >
+              <Globe className="h-6 w-6" />
+            </motion.div>
+            <span className="text-xs font-semibold text-zinc-500 group-hover:text-purple-400 transition-all">Ver Mundial &rarr;</span>
           </div>
-          <h3 className="mt-4 text-xl font-bold text-white">Predicciones del Podio</h3>
+          <h3 className="mt-4 text-xl font-bold text-white">Mundial 2026</h3>
           <p className="mt-2 text-zinc-400 text-sm">
-            Elige a tu Campeón, Subcampeón y Tercer Puesto antes del inicio del mundial para acumular hasta 55 puntos extra.
+            Sigue todos los partidos del Mundial en vivo, consulta las tablas de grupos y el bracket con resultados y pronósticos.
           </p>
         </Link>
 
@@ -192,9 +204,13 @@ export default function Home() {
           className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-cyan-500/50 hover:bg-zinc-900/60 transition-all duration-300"
         >
           <div className="flex items-center justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-all">
+            <motion.div
+              animate={{ scale: [1, 1.12, 1, 0.92, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-all"
+            >
               <ClipboardList className="h-6 w-6" />
-            </div>
+            </motion.div>
             <span className="text-xs font-semibold text-zinc-500 group-hover:text-cyan-400 transition-all">Ver actividad &rarr;</span>
           </div>
           <h3 className="mt-4 text-xl font-bold text-white">Historial de Actividad</h3>
@@ -209,7 +225,12 @@ export default function Home() {
       <ScrollReveal delay={0.2}>
       <div id="puntos" className="rounded-2xl border border-zinc-800 bg-zinc-900/20 p-6 space-y-6">
         <h3 className="text-lg font-bold flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-emerald-400" />
+          <motion.div
+            animate={{ rotate: [0, -8, 8, -4, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Calendar className="h-5 w-5 text-emerald-400" />
+          </motion.div>
           Lógica de Puntuación PollaMax
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">

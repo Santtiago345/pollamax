@@ -16,10 +16,13 @@ import {
   getDocs,
   where,
   setDoc,
-  getDoc
+  getDoc,
+  deleteDoc,
+  updateDoc,
+  limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download, Bell, BellRing, BellOff, Users, TrendingUp, UserPlus } from 'lucide-react';
+import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download, Bell, BellRing, BellOff, Users, TrendingUp, UserPlus, ClipboardList, History, AlertTriangle, Database, Search, X, Ban, Settings, FileText, MessageSquare, Eye, EyeOff } from 'lucide-react';
 import { sendBrowserNotification, isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
 
 interface Match {
@@ -62,6 +65,27 @@ export default function AdminPage() {
   // Sincronización Mundial
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{ message: string; status: string } | null>(null);
+
+  // Gestión del Feed
+  const [feedEntries, setFeedEntries] = useState<any[]>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedDeleting, setFeedDeleting] = useState<string | null>(null);
+
+  // Gestión de Apuestas
+  const [betsForMatch, setBetsForMatch] = useState<any[]>([]);
+  const [selectedBetMatchId, setSelectedBetMatchId] = useState('');
+  const [betsLoading, setBetsLoading] = useState(false);
+  const [betDeleting, setBetDeleting] = useState<string | null>(null);
+
+  // Gestión de Usuarios
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userActionLoading, setUserActionLoading] = useState<string | null>(null);
+
+  // Datos Firebase
+  const [firebaseStats, setFirebaseStats] = useState<Record<string, number>>({});
+  const [configData, setConfigData] = useState<any>(null);
+  const [showConfig, setShowConfig] = useState(false);
 
   // 1. Verificar si el usuario es administrador
   const isAdmin = profile?.isAdmin === true;
@@ -514,6 +538,195 @@ export default function AdminPage() {
     }
   };
 
+  const handleLoadFeed = async () => {
+    setFeedLoading(true);
+    try {
+      const q = query(collection(db, 'history'), orderBy('timestamp', 'desc'), limit(100));
+      const snap = await getDocs(q);
+      const entries = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+      setFeedEntries(entries);
+    } catch (e) {
+      console.error('Error loading feed:', e);
+      alert('Error al cargar el feed.');
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
+  const handleDeleteFeedEntry = async (docId: string) => {
+    if (!window.confirm('¿Eliminar esta entrada del feed?')) return;
+    setFeedDeleting(docId);
+    try {
+      await deleteDoc(doc(db, 'history', docId));
+      setFeedEntries(prev => prev.filter(e => e.docId !== docId));
+    } catch (e) {
+      console.error('Error deleting feed entry:', e);
+      alert('Error al eliminar la entrada.');
+    } finally {
+      setFeedDeleting(null);
+    }
+  };
+
+  const handleClearAllFeed = async () => {
+    if (!window.confirm('¿Eliminar TODAS las entradas del feed? Esto no se puede deshacer.')) return;
+    setFeedLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'history'));
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      setFeedEntries([]);
+      alert('Feed limpiado correctamente.');
+    } catch (e) {
+      console.error('Error clearing feed:', e);
+      alert('Error al limpiar el feed.');
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
+  const handleLoadBetsForMatch = async (matchId: string) => {
+    if (!matchId) { setBetsForMatch([]); return; }
+    setBetsLoading(true);
+    try {
+      const q = query(collection(db, 'bets'), where('matchId', '==', matchId));
+      const snap = await getDocs(q);
+      const list = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+      setBetsForMatch(list);
+    } catch (e) {
+      console.error('Error loading bets:', e);
+    } finally {
+      setBetsLoading(false);
+    }
+  };
+
+  const handleDeleteBet = async (docId: string) => {
+    if (!window.confirm('¿Eliminar esta apuesta?')) return;
+    setBetDeleting(docId);
+    try {
+      await deleteDoc(doc(db, 'bets', docId));
+      setBetsForMatch(prev => prev.filter(b => b.docId !== docId));
+    } catch (e) {
+      console.error('Error deleting bet:', e);
+      alert('Error al eliminar la apuesta.');
+    } finally {
+      setBetDeleting(null);
+    }
+  };
+
+  const handleClearBetsForMatch = async (matchId: string) => {
+    if (!window.confirm(`¿Eliminar TODAS las apuestas del partido "${matchId}"? Esto no se puede deshacer.`)) return;
+    setBetsLoading(true);
+    try {
+      const q = query(collection(db, 'bets'), where('matchId', '==', matchId));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      setBetsForMatch([]);
+      alert(`Apuestas del partido ${matchId} eliminadas.`);
+    } catch (e) {
+      console.error('Error clearing bets:', e);
+      alert('Error al limpiar apuestas.');
+    } finally {
+      setBetsLoading(false);
+    }
+  };
+
+  const handleLoadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const list = snap.docs.map(d => ({ docId: d.id, ...d.data() })).sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
+      setAllUsers(list);
+    } catch (e) {
+      console.error('Error loading users:', e);
+      alert('Error al cargar usuarios.');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleToggleAdmin = async (userId: string, current: boolean) => {
+    setUserActionLoading(userId);
+    try {
+      await updateDoc(doc(db, 'users', userId), { isAdmin: !current });
+      setAllUsers(prev => prev.map(u => u.docId === userId ? { ...u, isAdmin: !current } : u));
+    } catch (e) {
+      console.error('Error toggling admin:', e);
+      alert('Error al cambiar rol.');
+    } finally {
+      setUserActionLoading(null);
+    }
+  };
+
+  const handleSetUserPoints = async (userId: string, userName: string) => {
+    const input = prompt(`Nuevos puntos para ${userName}:`, '0');
+    if (input === null) return;
+    const pts = parseInt(input, 10);
+    if (isNaN(pts)) { alert('Ingresa un número válido.'); return; }
+    setUserActionLoading(userId);
+    try {
+      await setDoc(doc(db, 'users', userId), { points: pts }, { merge: true });
+      setAllUsers(prev => prev.map(u => u.docId === userId ? { ...u, points: pts } : u));
+      alert(`Puntos de ${userName} actualizados a ${pts}.`);
+    } catch (e) {
+      console.error('Error setting points:', e);
+      alert('Error al actualizar puntos.');
+    } finally {
+      setUserActionLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!window.confirm(`¿Eliminar al usuario "${userName}" (${userId}) permanentemente? También se eliminarán sus apuestas.`)) return;
+    setUserActionLoading(userId);
+    try {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'users', userId));
+      const betsSnap = await getDocs(query(collection(db, 'bets'), where('userId', '==', userId)));
+      betsSnap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      setAllUsers(prev => prev.filter(u => u.docId !== userId));
+      alert(`Usuario "${userName}" eliminado.`);
+    } catch (e) {
+      console.error('Error deleting user:', e);
+      alert('Error al eliminar usuario.');
+    } finally {
+      setUserActionLoading(null);
+    }
+  };
+
+  const handleLoadFirebaseStats = async () => {
+    try {
+      const collections = ['matches', 'bets', 'users', 'history', 'config'];
+      const stats: Record<string, number> = {};
+      for (const name of collections) {
+        const snap = await getDocs(collection(db, name));
+        stats[name] = snap.size;
+      }
+      setFirebaseStats(stats);
+      const configSnap = await getDoc(doc(db, 'config', 'tournamentResults'));
+      setConfigData(configSnap.exists() ? configSnap.data() : null);
+    } catch (e) {
+      console.error('Error loading stats:', e);
+    }
+  };
+
+  const handleClearCache = async () => {
+    if (!window.confirm('¿Eliminar datos cacheados del Mundial (worldCupCache)?')) return;
+    try {
+      const snap = await getDocs(collection(db, 'worldCupCache'));
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      alert('Caché eliminado.');
+    } catch (e) {
+      console.error('Error clearing cache:', e);
+      alert('Error al limpiar caché.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-zinc-950 text-white">
@@ -884,6 +1097,245 @@ export default function AdminPage() {
 
           {/* Gestión de Jugadores */}
           <PlayerManager db={db} writeBatch={writeBatch} increment={increment} doc={doc} getDocs={getDocs} collection={collection} />
+
+          {/* Gestión del Feed */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-white">
+                <MessageSquare className="h-5 w-5 text-pink-400" />
+                Gestión del Feed
+              </h3>
+              <div className="flex gap-2">
+                <button onClick={handleLoadFeed} disabled={feedLoading} className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-all disabled:opacity-50">
+                  {feedLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                  Cargar
+                </button>
+                <button onClick={handleClearAllFeed} disabled={feedLoading} className="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Vaciar
+                </button>
+              </div>
+            </div>
+            {feedEntries.length > 0 && (
+              <p className="text-xs text-zinc-500">{feedEntries.length} entradas cargadas</p>
+            )}
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+              {feedEntries.map((entry: any) => (
+                <div key={entry.docId} className="flex items-start gap-3 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2.5 group hover:bg-zinc-900/30 transition-all">
+                  <div className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 shrink-0 mt-0.5">
+                    {entry.userPhoto ? (
+                      <img src={entry.userPhoto} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-[9px] text-zinc-500 font-bold">
+                        {entry.userName?.slice(0, 2).toUpperCase() || '??'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-zinc-300">{entry.userName || 'Sistema'}</span>
+                      <span className="text-[10px] text-zinc-600">{entry.timestamp ? new Date(entry.timestamp).toLocaleString('es-ES') : ''}</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{entry.message}</p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteFeedEntry(entry.docId)}
+                    disabled={feedDeleting === entry.docId}
+                    className="shrink-0 h-7 w-7 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center disabled:opacity-50"
+                  >
+                    {feedDeleting === entry.docId ? <RefreshCw className="h-3 w-3 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              ))}
+              {feedEntries.length === 0 && !feedLoading && (
+                <div className="text-center py-6 text-zinc-500 text-sm">Haz clic en "Cargar" para ver las entradas del feed.</div>
+              )}
+              {feedLoading && feedEntries.length === 0 && (
+                <div className="text-center py-6 text-zinc-500 text-sm animate-pulse">Cargando...</div>
+              )}
+            </div>
+          </div>
+
+          {/* Gestión de Apuestas */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-white border-b border-zinc-800/80 pb-2">
+              <History className="h-5 w-5 text-cyan-400" />
+              Gestión de Apuestas
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedBetMatchId}
+                  onChange={(e) => { setSelectedBetMatchId(e.target.value); handleLoadBetsForMatch(e.target.value); }}
+                  className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm outline-none text-zinc-300"
+                >
+                  <option value="">Selecciona un partido...</option>
+                  {matches.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.teamA} vs {m.teamB} ({m.status})
+                    </option>
+                  ))}
+                </select>
+                {selectedBetMatchId && (
+                  <button
+                    onClick={() => handleClearBetsForMatch(selectedBetMatchId)}
+                    disabled={betsLoading}
+                    className="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Vaciar
+                  </button>
+                )}
+              </div>
+              {betsLoading && (
+                <div className="text-center py-4 text-zinc-500 text-sm animate-pulse">Cargando apuestas...</div>
+              )}
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                {betsForMatch.map((bet: any) => (
+                  <div key={bet.docId} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2.5 group hover:bg-zinc-900/30 transition-all">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+                        {bet.userPhoto ? (
+                          <img src={bet.userPhoto} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-[9px] text-zinc-500 font-bold">
+                            {bet.userName?.slice(0, 2).toUpperCase() || '??'}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold text-zinc-300 truncate">{bet.userName}</span>
+                      <span className="text-sm font-black text-emerald-400">{bet.predA} - {bet.predB}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${bet.processed ? 'bg-zinc-700 text-zinc-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                        {bet.processed ? 'Procesada' : 'Pendiente'}
+                      </span>
+                      {bet.pointsEarned != null && (
+                        <span className="text-xs font-bold text-emerald-500">+{bet.pointsEarned} pts</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteBet(bet.docId)}
+                      disabled={betDeleting === bet.docId}
+                      className="shrink-0 h-7 w-7 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center disabled:opacity-50"
+                    >
+                      {betDeleting === bet.docId ? <RefreshCw className="h-3 w-3 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                ))}
+                {selectedBetMatchId && betsForMatch.length === 0 && !betsLoading && (
+                  <div className="text-center py-4 text-zinc-500 text-sm">No hay apuestas para este partido.</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Gestión de Usuarios */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-white">
+                <Users className="h-5 w-5 text-violet-400" />
+                Gestión de Usuarios
+              </h3>
+              <button onClick={handleLoadUsers} disabled={usersLoading} className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-all disabled:opacity-50">
+                {usersLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                Cargar
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+              {allUsers.map((u: any) => (
+                <div key={u.docId} className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2 group hover:bg-zinc-900/30 transition-all">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+                      {u.photoURL ? (
+                        <img src={u.photoURL} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-[9px] text-zinc-500 font-bold">{u.name?.slice(0, 2).toUpperCase() || '??'}</div>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-zinc-300 truncate">{u.name}</span>
+                    <span className="text-xs font-bold text-emerald-400">{u.points ?? 0} pts</span>
+                    {u.isAdmin && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold">Admin</span>}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleToggleAdmin(u.docId, u.isAdmin)}
+                      disabled={userActionLoading === u.docId}
+                      className="h-7 px-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-amber-500/10 hover:text-amber-400 text-[10px] font-bold transition-all disabled:opacity-50 flex items-center gap-1"
+                      title={u.isAdmin ? 'Quitar admin' : 'Hacer admin'}
+                    >
+                      {u.isAdmin ? <EyeOff className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+                    </button>
+                    <button
+                      onClick={() => handleSetUserPoints(u.docId, u.name)}
+                      disabled={userActionLoading === u.docId}
+                      className="h-7 px-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-emerald-500/10 hover:text-emerald-400 text-[10px] font-bold transition-all disabled:opacity-50"
+                      title="Cambiar puntos"
+                    >
+                      <Settings className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(u.docId, u.name)}
+                      disabled={userActionLoading === u.docId}
+                      className="h-7 w-7 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 transition-all disabled:opacity-50 flex items-center justify-center"
+                      title="Eliminar usuario"
+                    >
+                      {userActionLoading === u.docId ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {allUsers.length === 0 && !usersLoading && (
+                <div className="text-center py-6 text-zinc-500 text-sm">Haz clic en "Cargar" para ver los usuarios.</div>
+              )}
+              {usersLoading && allUsers.length === 0 && (
+                <div className="text-center py-6 text-zinc-500 text-sm animate-pulse">Cargando...</div>
+              )}
+            </div>
+          </div>
+
+          {/* Firebase Stats */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-white">
+                <Database className="h-5 w-5 text-green-400" />
+                Firebase: Datos y Configuración
+              </h3>
+              <button onClick={handleLoadFirebaseStats} className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-all">
+                <Eye className="h-3.5 w-3.5" />
+                Ver stats
+              </button>
+            </div>
+            {Object.keys(firebaseStats).length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {Object.entries(firebaseStats).map(([col, count]) => (
+                  <div key={col} className="rounded-xl border border-zinc-800/50 bg-zinc-900/20 px-3 py-2 text-center">
+                    <span className="text-[10px] text-zinc-500 block uppercase tracking-wider">{col}</span>
+                    <span className="text-lg font-extrabold text-white">{count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {configData && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/20 p-3">
+                <button onClick={() => setShowConfig(!showConfig)} className="flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-all">
+                  <FileText className="h-3.5 w-3.5" />
+                  Config: tournamentResults
+                  {showConfig ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+                {showConfig && (
+                  <pre className="mt-2 text-[10px] text-zinc-500 bg-zinc-950 rounded-lg p-3 overflow-x-auto max-h-[200px] whitespace-pre-wrap">
+                    {JSON.stringify(configData, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
+            <button
+              onClick={handleClearCache}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-2.5 text-xs font-semibold text-orange-400 hover:bg-orange-500/10 transition-all"
+            >
+              <Trash2 className="h-4 w-4" />
+              Limpiar Caché (worldCupCache)
+            </button>
+          </div>
 
           <h3 className="text-xl font-bold flex items-center gap-2 text-white border-b border-zinc-800 pb-3">
             <Star className="h-5 w-5 text-emerald-400" />
