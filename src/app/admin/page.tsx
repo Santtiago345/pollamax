@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Download, Bell, BellRing, BellOff, Users, TrendingUp, UserPlus } from 'lucide-react';
-import { sendBrowserNotification } from '@/lib/notifications';
+import { sendBrowserNotification, isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
 
 interface Match {
   id: string;
@@ -724,15 +724,19 @@ export default function AdminPage() {
               <Bell className="h-5 w-5 text-purple-400" />
               Probar Notificaciones
             </h3>
-            <p className="text-xs text-zinc-500">Haz clic en los botones para enviar una notificación de prueba. Debes aceptar las notificaciones en tu navegador primero.</p>
+            <p className="text-xs text-zinc-500">
+              {isIOS()
+                ? 'En iOS las notificaciones nativas no están disponibles. Las pruebas se mostrarán como avisos en pantalla.'
+                : 'Haz clic para enviar una notificación de prueba. Debes aceptar las notificaciones en tu navegador primero.'}
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 onClick={() => {
-                  if (!('Notification' in window) || Notification.permission !== 'granted') {
-                    alert('Primero acepta las notificaciones en el banner que aparece en la pantalla.');
-                    return;
-                  }
-                  sendBrowserNotification('🔔 Recordatorio', 'Queda 1 hora para Argentina vs Brasil. ¡No olvides apostar!');
+                  const title = '🔔 Recordatorio';
+                  const body = 'Queda 1 hora para Argentina vs Brasil. ¡No olvides apostar!';
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Primero acepta las notificaciones en el banner.'); return; }
+                  sendBrowserNotification(title, body);
                 }}
                 className="flex flex-col items-center gap-1 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-all"
               >
@@ -741,8 +745,11 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={() => {
-                  if (!('Notification' in window) || Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
-                  sendBrowserNotification('📊 Apuesta registrada', 'María apostó 2-1 en Alemania vs Francia.');
+                  const title = '📊 Apuesta registrada';
+                  const body = 'María apostó 2-1 en Alemania vs Francia.';
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification(title, body);
                 }}
                 className="flex flex-col items-center gap-1 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-3 text-xs font-semibold text-cyan-400 hover:bg-cyan-500/10 transition-all"
               >
@@ -751,8 +758,11 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={() => {
-                  if (!('Notification' in window) || Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
-                  sendBrowserNotification('🔥 Racha', 'Pedro lleva 4 aciertos consecutivos en Marcadores Exactos!');
+                  const title = '🔥 Racha';
+                  const body = 'Pedro lleva 4 aciertos consecutivos en Marcadores Exactos!';
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification(title, body);
                 }}
                 className="flex flex-col items-center gap-1 rounded-xl border border-orange-500/20 bg-orange-500/5 px-3 py-3 text-xs font-semibold text-orange-400 hover:bg-orange-500/10 transition-all"
               >
@@ -761,8 +771,11 @@ export default function AdminPage() {
               </button>
               <button
                 onClick={() => {
-                  if (!('Notification' in window) || Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
-                  sendBrowserNotification('👋 Nuevo jugador', 'Carlos se unió a la PollaMax. ¡Dale la bienvenida!');
+                  const title = '👋 Nuevo jugador';
+                  const body = 'Carlos se unió a la PollaMax. ¡Dale la bienvenida!';
+                  if (isIOS() || !isNotificationSupported()) { showInAppAlert(title, body); return; }
+                  if (Notification.permission !== 'granted') { alert('Acepta las notificaciones primero.'); return; }
+                  sendBrowserNotification(title, body);
                 }}
                 className="flex flex-col items-center gap-1 rounded-xl border border-green-500/20 bg-green-500/5 px-3 py-3 text-xs font-semibold text-green-400 hover:bg-green-500/10 transition-all"
               >
@@ -770,20 +783,103 @@ export default function AdminPage() {
                 Nuevo Jugador
               </button>
             </div>
-            <button
-              onClick={async () => {
-                if (!('Notification' in window)) { alert('Tu navegador no soporta notificaciones.'); return; }
-                const perm = await Notification.requestPermission();
-                if (perm === 'granted') {
-                  sendBrowserNotification('✅ Notificaciones activadas', 'Ahora recibirás notificaciones de PollaMax.');
-                } else {
-                  alert('Permiso denegado. Actívalo manualmente en la configuración del navegador.');
-                }
-              }}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-xs font-bold text-zinc-300 hover:bg-zinc-700 transition-all"
-            >
-              Solicitar permiso de notificaciones
-            </button>
+            {!isIOS() && isNotificationSupported() && (
+              <button
+                onClick={async () => {
+                  const perm = await Notification.requestPermission();
+                  if (perm === 'granted') {
+                    sendBrowserNotification('✅ Notificaciones activadas', 'Ahora recibirás notificaciones de PollaMax.');
+                  } else {
+                    alert('Permiso denegado. Actívalo manualmente en la configuración del navegador.');
+                  }
+                }}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-2.5 text-xs font-bold text-zinc-300 hover:bg-zinc-700 transition-all"
+              >
+                Solicitar permiso de notificaciones
+              </button>
+            )}
+          </div>
+
+          {/* Simulación de Cambios en Ranking */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-white border-b border-zinc-800/80 pb-2">
+              <TrendingUp className="h-5 w-5 text-blue-400" />
+              Simular Cambios en Ranking
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Estas herramientas simulan cambios de puntuación para probar las animaciones del podio en la tabla de posiciones.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/world-cup-sync');
+                    const data = await res.json();
+                    alert(`✅ ${data.message}`);
+                  } catch (e) {
+                    alert('Error al sincronizar. Revisa la consola.');
+                  }
+                }}
+                className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-all"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Sincronizar Mundial
+              </button>
+              <button
+                onClick={async () => {
+                  if (!user) { alert('Debes iniciar sesión.'); return; }
+                  const points = Math.floor(Math.random() * 10) + 1;
+                  const batch = writeBatch(db);
+                  const userRef = doc(db, 'users', user.uid);
+                  batch.update(userRef, { points: increment(points) });
+                  try {
+                    await batch.commit();
+                    alert(`+${points} puntos añadidos a tu perfil. Revisa la tabla de posiciones para ver la animación.`);
+                  } catch (err: any) {
+                    alert('Error: ' + err.message);
+                  }
+                }}
+                className="flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs font-semibold text-blue-400 hover:bg-blue-500/10 transition-all"
+              >
+                <UserPlus className="h-4 w-4" />
+                Darme +Puntos
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const usersSnap = await getDocs(collection(db, 'users'));
+                    const usersList = usersSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+                    if (usersList.length < 2) { alert('Se necesitan al menos 2 usuarios.'); return; }
+                    const lastUser = usersList[usersList.length - 1];
+                    const batch = writeBatch(db);
+                    batch.update(doc(db, 'users', lastUser.id), { points: increment(15) });
+                    await batch.commit();
+                    alert(`+15 puntos para ${lastUser.name}. Debería subir posiciones en el ranking.`);
+                  } catch (e: any) {
+                    alert('Error: ' + e.message);
+                  }
+                }}
+                className="flex items-center gap-2 rounded-xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 text-xs font-semibold text-purple-400 hover:bg-purple-500/10 transition-all"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Ascender a Último
+              </button>
+              <button
+                onClick={async () => {
+                  // Resetear vista del ranking (borrar sessionStorage)
+                  for (const key of Object.keys(sessionStorage)) {
+                    if (key.startsWith('lastRankOrder_')) {
+                      sessionStorage.removeItem(key);
+                    }
+                  }
+                  alert('Se reseteó el historial de animaciones. Al recargar la tabla de posiciones, las animaciones de entrada se reproducirán de nuevo.');
+                }}
+                className="flex items-center gap-2 rounded-xl border border-zinc-600/40 bg-zinc-800/50 px-4 py-3 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-all"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Resetear Animaciones
+              </button>
+            </div>
           </div>
 
           <h3 className="text-xl font-bold flex items-center gap-2 text-white border-b border-zinc-800 pb-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -36,9 +36,34 @@ export default function MatchesPage() {
   const [bets, setBets] = useState<Record<string, Bet>>({});
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [syncAttempted, setSyncAttempted] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const syncKeyRef = useRef<string | null>(null);
 
-  // 1. Escuchar partidos en tiempo real
+  // 1. Auto-sync al montar si no hay partidos
+  useEffect(() => {
+    const checkAndSync = async () => {
+      // Evitar sincronizar repetido (sessionStorage)
+      const lastSync = sessionStorage.getItem('autoSyncDone');
+      if (lastSync === 'true') return;
+
+      try {
+        const res = await fetch('/api/world-cup-sync');
+        const data = await res.json();
+        console.log('Auto-sync:', data.message);
+        if (data.status === 'success') {
+          sessionStorage.setItem('autoSyncDone', 'true');
+          // Si la API devolvió partidos, refrescar cada 5 min
+          setTimeout(() => sessionStorage.removeItem('autoSyncDone'), 300000);
+        }
+      } catch (err) {
+        console.error('Auto-sync error:', err);
+      }
+    };
+
+    checkAndSync();
+  }, []);
+
+  // 2. Escuchar partidos en tiempo real
   useEffect(() => {
     const q = query(collection(db, 'matches'), orderBy('date', 'asc'));
     const unsubscribe = onSnapshot(
@@ -51,15 +76,15 @@ export default function MatchesPage() {
         setMatches(matchesList);
         setLoading(false);
 
-        // Si no hay partidos, disparar sincronización automática una sola vez
-        if (matchesList.length === 0 && !syncAttempted && !syncing) {
-          setSyncAttempted(true);
-          setSyncing(true);
+        // Si aún no hay partidos tras sincronizar, reintentar
+        if (matchesList.length === 0 && !syncing && !syncKeyRef.current) {
+          setRetrying(true);
+          syncKeyRef.current = 'attempted';
           fetch('/api/world-cup-sync')
             .then(res => res.json())
-            .then(data => console.log('Auto-sync:', data.message))
-            .catch(err => console.error('Auto-sync error:', err))
-            .finally(() => setSyncing(false));
+            .then(data => console.log('Retry sync:', data.message))
+            .catch(err => console.error('Retry sync error:', err))
+            .finally(() => setRetrying(false));
         }
       },
       (error) => {
@@ -69,7 +94,7 @@ export default function MatchesPage() {
     );
 
     return () => unsubscribe();
-  }, [syncAttempted, syncing]);
+  }, [syncing]);
 
   // 2. Escuchar apuestas del usuario en tiempo real
   useEffect(() => {
@@ -163,12 +188,12 @@ export default function MatchesPage() {
 
       {matches.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/10 p-12 text-center">
-          {syncing ? (
+          {retrying ? (
             <>
               <RefreshCw className="h-12 w-12 text-emerald-400 mx-auto mb-4 animate-spin" />
               <h3 className="text-xl font-bold text-zinc-300">Sincronizando partidos...</h3>
               <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
-                Estamos cargando automáticamente los partidos del Mundial 2026 desde la fuente oficial. Un momento...
+                Estamos cargando automáticamente los partidos del Mundial 2026. Un momento...
               </p>
             </>
           ) : (
@@ -176,7 +201,7 @@ export default function MatchesPage() {
               <Globe className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-zinc-300">No hay partidos disponibles</h3>
               <p className="text-zinc-500 text-sm mt-2 max-w-sm mx-auto">
-                No se pudieron cargar los partidos automáticamente. El administrador debe sincronizar desde el panel de control.
+                {loading ? 'Cargando partidos...' : 'No se pudieron cargar los partidos automáticamente. El administrador debe sincronizar desde el panel de control.'}
               </p>
             </>
           )}

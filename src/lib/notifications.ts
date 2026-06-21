@@ -22,8 +22,20 @@ const REMINDER_INTERVALS = [
 // IDs de notificaciones ya enviadas para evitar duplicados
 const sentNotifications = new Set<string>();
 
+// Detectar iOS (Safari no soporta Notification API)
+export function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) && !/CriOS/.test(ua);
+}
+
+export function isNotificationSupported(): boolean {
+  if (isIOS()) return false;
+  return 'Notification' in window;
+}
+
 export function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (!('Notification' in window)) {
+  if (!isNotificationSupported()) {
     return Promise.resolve('denied');
   }
   if (Notification.permission === 'default') {
@@ -33,12 +45,12 @@ export function requestNotificationPermission(): Promise<NotificationPermission>
 }
 
 export function getNotificationPermission(): NotificationPermission {
-  if (!('Notification' in window)) return 'denied';
+  if (!isNotificationSupported()) return 'denied';
   return Notification.permission;
 }
 
 export function sendBrowserNotification(title: string, body: string, icon?: string) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!isNotificationSupported() || Notification.permission !== 'granted') return;
   try {
     new Notification(title, {
       body,
@@ -48,6 +60,13 @@ export function sendBrowserNotification(title: string, body: string, icon?: stri
   } catch (e) {
     console.error('Error sending notification:', e);
   }
+}
+
+// Recordatorios locales para iOS (usando alert de la página en lugar de notificación nativa)
+export function showInAppAlert(title: string, body: string) {
+  // Dispara un evento personalizado que el NotificationBanner puede escuchar
+  const event = new CustomEvent('in-app-notification', { detail: { title, body } });
+  window.dispatchEvent(event);
 }
 
 // Programar recordatorios para un partido
