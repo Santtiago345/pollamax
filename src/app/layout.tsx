@@ -7,6 +7,7 @@ import AnimatedLayout from '@/components/AnimatedLayout';
 import { NotificationBanner } from '@/components/NotificationBanner';
 import { NotificationService } from '@/components/NotificationService';
 import { Analytics } from "@vercel/analytics/next"
+import Link from 'next/link';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -41,8 +42,14 @@ export default function RootLayout({
               {children}
             </AnimatedLayout>
           </main>
-          <footer className="py-6 border-t border-zinc-900 bg-black text-center text-xs text-zinc-500">
-            &copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia Cocunubo-Neuta mundialista.
+          <footer className="py-6 px-4 border-t border-zinc-900 bg-black text-center text-xs text-zinc-500">
+            <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-3" aria-label="Footer">
+              <Link href="/" className="hover:text-emerald-400 transition-colors">Inicio</Link>
+              <Link href="/terminos" className="hover:text-emerald-400 transition-colors">Términos y Condiciones</Link>
+              <Link href="/cookies" className="hover:text-emerald-400 transition-colors">Política de Cookies</Link>
+              <Link href="/dmca" className="hover:text-emerald-400 transition-colors">DMCA y Terceros</Link>
+            </nav>
+            <p>&copy; {new Date().getFullYear()} PollaMax. Hecho con ❤️ para la familia Cocunubo-Neuta mundialista.</p>
           </footer>
           <NotificationService />
           <NotificationBanner />

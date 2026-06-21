@@ -1,103 +1,232 @@
-# 🏆 PollaMax - Polla Mundialista Familiar en Tiempo Real
+# 🏆 PollaMax — Polla Mundialista Familiar en Tiempo Real
 
-PollaMax es una aplicación web interactiva diseñada para apuestas familiares ("pollas" o "quinielas") del Mundial de Fútbol. Permite a un grupo de 20 a 50 usuarios pronosticar marcadores, competir en un ranking en tiempo real, visualizar las apuestas de otros miembros en un feed de actividad interactivo y seleccionar su podio (Campeón, Subcampeón y Tercer Puesto) antes del inicio del torneo.
+PollaMax es una plataforma web interactiva para que grupos familiares o de amigos ("pollas" o "quinielas") pronostiquen los resultados del Mundial de Fútbol 2026. Los usuarios predicen marcadores, acumulan puntos según sus aciertos, compiten en un ranking en vivo y siguen la actividad de todos los participantes a través de un feed en tiempo real.
+
+**Tecnologías:** Next.js 16, React 19, TypeScript, Tailwind CSS v4, Firebase (Auth + Firestore), Framer Motion, Lucide Icons, Vercel Analytics.
 
 ---
 
-## 🚀 Características Principales
+## ✨ Funcionalidades Completas
 
-1. **Autenticación Simple:** Login seguro con Google mediante Firebase Auth.
-2. **Pronósticos de Partidos:** Panel intuitivo responsivo (mobile-first) para ingresar marcadores de fútbol, con bloqueo automático de apuestas 5 minutos antes del pitazo inicial de cada encuentro.
-3. **Puntuación Acumulativa Dinámica:**
-   - **Marcador Exacto:** **5 puntos** (puntuación plana).
-   - **Ganador Correcto (no exacto):** **3 puntos**.
-   - **Empate Correcto (no exacto):** **2 puntos**.
-   - **Goles de un Equipo:** **1 punto** por cada equipo del cual se acierte la cantidad exacta de goles (máximo 2).
-   - **Diferencia de Goles Exacta:** **1 punto** (si no se acierta el marcador exacto).
-   - **Podio Final:** Campeón (**25 pts**), Subcampeón (**17 pts**), Tercer Puesto (**13 pts**).
-4. **Ranking en Vivo:** Tabla de posiciones olímpica y clasificación general sincronizada en tiempo real mediante Firestore (`onSnapshot`).
-5. **Feed de Actividad (Feed):** Muro de actualizaciones en tiempo real que registra qué ha apostado cada usuario de la familia para aumentar la competitividad y la diversión.
-6. **Panel de Administrador Integrado:** Interfaz para crear partidos, controlar el marcador en tiempo real (modo vivo), finalizar encuentros, autocalcular y repartir los puntos a todos los usuarios en segundos, además de asignar el podio oficial al terminar el torneo.
+### 🔐 Autenticación
+- Inicio de sesión con Google mediante Firebase Auth.
+- Perfil de usuario con nombre, foto, puntos, país seleccionado.
+- Administradores con acceso a panel de control exclusivo.
+
+### 🎯 Pronósticos de Partidos (`/matches`)
+- Carga de partidos en tiempo real desde **OpenFootball API** (cada 30 segundos).
+- Interfaz para ingresar marcadores con teclado numérico.
+- **Bloqueo automático** 5 minutos antes del inicio de cada partido.
+- Coloración de pronósticos: verde (acierto exacto), naranja (ganador/empate correcto), rojo (fallo).
+- Agrupación de partidos en Hoy, Mañana, Próximos.
+- Animaciones con framer-motion (entrada escalonada, popLayout en transiciones).
+
+### 🌍 Mundial en Vivo (`/mundial`)
+- **Partidos:** Vista unificada con todos los partidos agrupados por día, colores según acierto del usuario, horas en formato AM/PM, banner del partido en vivo con marcador actualizado, banner del próximo partido con cuenta regresiva.
+- **Grupos:** Tablas de posiciones de los 12 grupos (formato 2026: 48 equipos, top 3 clasifican a R32) con estadísticas completas (PJ, PG, PE, PP, GF, GC, DG, Pts).
+- **Llaves:** Árbol de eliminación directa desde Ronda de 32 hasta la Final, con proyección dinámica basada en posiciones actuales de grupos y mejores terceros según conjuntos FIFA definidos.
+- Eventos de cambio de partido detectados (en vivo, gol, entretiempo, finalizado) mostrados en barra de notificaciones.
+
+### 🏆 Sistema de Puntuación
+| Condición | Puntos |
+|-----------|--------|
+| Marcador exacto | **+5** |
+| Ganador correcto (no exacto) | **+3** |
+| Empate correcto (no exacto) | **+2** |
+| Gol de un equipo acertado | **+1 c/u** |
+| Diferencia de goles exacta | **+1** |
+| Campeón del Mundial | **+25** |
+| Subcampeón | **+17** |
+| Tercer puesto | **+13** |
+
+### 🔥 Sistema de Rachas
+- **Racha de Marcadores Exactos:** 3 seguidos → +1 pt extra, 4+ → +2 pts extra.
+- **Racha de Ganadores:** 3 seguidos → +3 pts extra, 4+ → +1 pt extra.
+- Las rachas se consolidan al finalizar cada partido. Si un usuario no apuesta un partido, su racha se reinicia.
+- Badge de racha visible siempre en el navbar con colores dinámicos (verde para exactos, rojo para ganadores).
+
+### 📊 Ranking (`/ranking`)
+- Tabla de posiciones en tiempo real con datos de Firestore.
+- **Podio animado** con entradas spring desde `y:100`.
+- **Detección de cambios de posición** entre sesiones usando `sessionStorage`.
+- Animación de escala en puntos al actualizar.
+- `AnimatePresence mode="popLayout"` para transiciones suaves en filas.
+
+### 📋 Feed de Actividad (`/feed`)
+- Muro en tiempo real con todas las apuestas, resultados, rachas y nuevos jugadores.
+- Suscripción a `collection(db, 'history')` con `onSnapshot`.
+- Entradas destacadas para rachas (color naranja).
+- Cabecera con avatares de todos los participantes, sus puntos y badge de racha.
+
+### 🔔 Sistema de Notificaciones
+- Notificaciones nativas del navegador (API Notification).
+- **Detección de iOS**: usa alertas en pantalla como fallback (iOS no soporta Notification API).
+- 4 categorías configurables desde `UserSettings`: recordatorios de partidos, apuestas de otros, rachas, nuevos jugadores.
+- Programación automática de recordatorios 1h, 30min y 10min antes de cada partido.
+
+### 🔊 Efectos de Sonido
+- Web Audio API (sin archivos externos).
+- Sonidos para: navegación entre tabs, entrada al podio, cambios de posición en ranking, guardar apuesta, errores.
+- Inicialización lazy del `AudioContext` con auto-resume.
+
+### 🛠️ Panel de Administración (`/admin`)
+- **Partidos:** Crear, poner en vivo, actualizar marcador (+A/+B), finalizar (distribuye puntos automáticamente), eliminar.
+- **Sincronización Mundial:** Importa todos los partidos del Mundial 2026 desde OpenFootball API.
+- **Podio Oficial:** Seleccionar campeón/subcampeón/tercero y distribuir puntos a todos los usuarios que acertaron.
+- **Feed:** Cargar últimas 100 entradas, eliminar individualmente, vaciar todo el feed.
+- **Apuestas:** Examinar partidos con apuestas, ver apuestas por usuario/marcador, eliminar individualmente, vaciar todas las apuestas de un partido.
+- **Usuarios:** Lista completa con toggle de admin, cambio manual de puntos, eliminación de usuario (borra también sus apuestas).
+- **Firebase Config:** Stats por colección, visor JSON de `config/tournamentResults`, limpiar `worldCupCache`.
+- **Notificaciones:** Botones de prueba para cada categoría (con fallback iOS).
+- **Simulación Ranking:** Botones para sumar puntos, ascender al último lugar, resetear animaciones.
+- **PlayerManager:** Ajuste de puntos (+5/+1/−1/−5) por jugador con `batch.update` + `increment`.
+
+### 🏠 Página de Inicio (`/`)
+- Dashboard con puntos, racha actual, enlaces rápidos a todas las secciones.
+- Iconos animados con loop infinito (rotación, rebote, latido).
+- Sección de reglas de puntuación y explicación del sistema de rachas.
+- ScrollReveal con IntersectionObserver para animaciones de entrada.
+
+### 📄 Páginas Legales
+- `/terminos` — Términos y Condiciones de uso.
+- `/cookies` — Política de Cookies (Firebase Auth, Vercel Analytics, sessionStorage).
+- `/dmca` — DMCA, atribución de terceros (OpenFootball, Firebase, Vercel, Lucide, Framer Motion).
+
+### 🧭 Navegación y Layout
+- Navbar responsivo con puntos, racha, enlaces a todas las secciones.
+- `UserSettings` animado con `AnimatePresence` (escala + fade).
+- Footer con enlaces legales.
+- Transiciones de página con `AnimatePresence mode="popLayout"` 0.12s.
+- Sonido de navegación al cambiar de tab.
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-- **Frontend:** Next.js 15 (React), TypeScript
-- **Estilos:** Tailwind CSS v4 (Rápido, minimalista y responsivo)
-- **Backend/Database/Realtime:** Firebase (Auth, Firestore)
-- **Despliegue y Hosting:** Vercel (Gratuito)
+| Capa | Tecnología |
+|------|-----------|
+| Framework | **Next.js 16** (React 19, Turbopack) |
+| Lenguaje | TypeScript |
+| Estilos | Tailwind CSS v4 |
+| Base de datos | **Firebase Firestore** (tiempo real) |
+| Autenticación | **Firebase Auth** (Google) |
+| Despliegue | **Vercel** (Edge + Serverless) |
+| Animaciones | **Framer Motion** |
+| Iconos | **Lucide React** |
+| Sonido | **Web Audio API** |
+| Analytics | **Vercel Analytics** |
+| API externa | **OpenFootball** (partidos y resultados) |
 
 ---
 
-## 📋 Guía de Configuración Paso a Paso
+## 🗄️ Estructura de Firestore
 
-### 1. Configuración de Firebase (Servicios Gratuitos)
+### `users/{uid}`
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `uid` | string | Firebase Auth UID |
+| `name` | string | Nombre del usuario |
+| `email` | string | Correo electrónico |
+| `points` | number | Puntos totales |
+| `isAdmin` | boolean | Admin flag |
+| `photoURL` | string\|null | Foto de perfil |
+| `country` | string\|null | País seleccionado |
+| `predictions` | object | `{ champion, runnerUp, thirdPlace, submittedAt }` |
+| `streak` | object | `{ type: 'exact'\|'winner'\|null, count, lastMatchId }` |
+| `notificationPreferences` | object | `{ matchReminders, otherBets, streaks, newPlayers }` |
 
-Sigue estos pasos en la consola de Firebase ([console.firebase.google.com](https://console.firebase.google.com/)):
+### `matches/{docId}`
+Campos: `id`, `teamA`, `teamB`, `teamAFlag`, `teamBFlag`, `date`, `scoreA`, `scoreB`, `scoreAHt`, `scoreBHt`, `status` (scheduled\|live\|finished), `minutes`, `group`, `round`, `ground`, `goals1`, `goals2`.
 
-1. **Crear un Proyecto:** Haz clic en "Agregar proyecto", nómbralo `PollaMax` y desactiva Google Analytics si lo prefieres para agilizar la creación.
-2. **Habilitar Firebase Authentication:**
-   - Ve a **Build > Authentication > Get Started**.
-   - En la pestaña **Sign-in method**, selecciona **Google**, actívalo, ingresa el correo de soporte y guarda.
-3. **Crear Base de Datos Firestore:**
-   - Ve a **Build > Firestore Database > Create Database**.
-   - Elige una ubicación cercana (ej. `us-central1` o `southamerica-east1`) y selecciona **Iniciar en modo de prueba** (luego aplicaremos reglas seguras).
-4. **Obtener las Credenciales del SDK:**
-   - Ve a la configuración del proyecto (icono de engranaje ⚙️ en la barra lateral > **Configuración del proyecto**).
-   - En la pestaña **General**, ve a la sección "Tus apps", haz clic en el icono web `</>` para registrar una aplicación. Nómbrala `pollamax-web` y haz clic en **Registrar app**.
-   - Copia el objeto `firebaseConfig` que contiene las claves de API, ID del proyecto, etc.
+### `bets/{userId_matchId}`
+Campos: `id`, `userId`, `userName`, `userPhoto`, `matchId`, `predA`, `predB`, `processed`, `pointsEarned`, `createdAt`.
+
+### `history/{docId}`
+Campos: `userId`, `userName`, `userPhoto`, `message`, `timestamp`.
+
+### `config/tournamentResults`
+Campos: `champion`, `runnerUp`, `thirdPlace`, `processed`, `processedAt`.
+
+### `worldCupCache/groups`
+Campos: `groups`, `lastUpdated`. / `lastSync`: `timestamp`, `matchesTotal`.
 
 ---
 
-### 2. Configuración de Reglas de Seguridad en Firestore
+## 📦 Instalación Local
 
-Para proteger las apuestas de los usuarios (evitar que alguien modifique o ingrese apuestas después de iniciado el partido o modifique los puntos de otros usuarios), copia y pega las siguientes reglas en la pestaña **Rules** de tu base de datos de Firestore en la consola:
+```bash
+# 1. Clonar repositorio
+git clone https://github.com/tuusuario/pollamax.git
+cd pollamax
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Configurar variables de entorno (.env.local)
+# Crea un archivo .env.local con las credenciales de Firebase:
+NEXT_PUBLIC_FIREBASE_API_KEY=xxx
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxx
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=xxx
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxx
+NEXT_PUBLIC_FIREBASE_APP_ID=xxx
+
+# 4. Iniciar servidor de desarrollo
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000).
+
+---
+
+## ☁️ Despliegue en Vercel
+
+1. Sube el código a GitHub.
+2. Conecta el repositorio en [vercel.com](https://vercel.com/).
+3. Agrega las variables de entorno en Vercel (mismas que en `.env.local`).
+4. Despliega. La URL será `https://tu-proyecto.vercel.app`.
+
+Para dominio personalizado (`pollamax.vercel.app`), renombra el proyecto en Vercel → Settings → General.
+
+---
+
+## 🔥 Reglas de Seguridad Firestore
+
+Debes copiar estas reglas en la consola de Firebase → Firestore → Rules:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Perfil del usuario
     match /users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId;
-      // Solo el usuario puede modificar sus predicciones de podio, los admins pueden modificar todo (puntos)
       allow update: if request.auth != null && 
-        (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+        (request.auth.uid == userId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
     }
-    
-    // Partidos
     match /matches/{matchId} {
       allow read: if request.auth != null;
-      // Solo administradores pueden escribir o borrar partidos
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
-    
-    // Apuestas
     match /bets/{betId} {
       allow read: if request.auth != null;
-      // Solo se permite crear o actualizar si el usuario está autenticado, es su propio registro,
-      // el partido está programado y faltan más de 5 minutos para su fecha de inicio.
       allow create, update: if request.auth != null 
         && request.resource.data.userId == request.auth.uid
         && get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.status == 'scheduled'
-        && time.date(get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.date).toMillis() - request.time.toMillis() > 300000;
-      allow delete: if false; // No se permite eliminar apuestas una vez hechas
+        && (time.date(get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.date).toMillis() - request.time.toMillis()) > 300000;
+      allow delete: if false;
     }
-    
-    // Historial de actividad
     match /history/{historyId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update, delete: if false;
     }
-    
-    // Configuración del podio final
     match /config/{configId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }
@@ -105,83 +234,74 @@ service cloud.firestore {
 
 ---
 
-### 3. Configuración del Primer Administrador
+## 👑 Configurar Primer Admin
 
-Por defecto, los usuarios nuevos no son administradores. Para asignar el rol de administrador al creador de la polla:
-1. Regístrate en la aplicación con tu cuenta de Google.
-2. Ve a la consola de Firebase en **Firestore Database > Colección `users`**.
-3. Busca el documento correspondiente a tu `uid` (ID de usuario de Firebase Auth).
-4. Agrega un campo nuevo de tipo **boolean** llamado `isAdmin` y establécelo en `true`.
-5. Recarga la aplicación. Verás un nuevo botón **Panel Admin** en el menú de navegación y en tu dashboard.
+1. Regístrate con Google en la app.
+2. En Firebase Console → Firestore → `users`, busca tu documento.
+3. Agrega campo `isAdmin: true` (tipo boolean).
+4. Recarga la app — verás el botón "Panel Admin".
 
 ---
 
-### 4. Variables de Entorno (`.env.local`)
+## 📁 Arquitectura del Proyecto
 
-Crea un archivo llamado `.env.local` en la raíz de tu proyecto local y rellénalo con las credenciales que obtuviste en el paso 1:
+```
+src/
+├── app/
+│   ├── page.tsx              # Inicio / Dashboard
+│   ├── layout.tsx            # Layout raíz (Navbar, Footer, AuthProvider)
+│   ├── matches/page.tsx      # Pronósticos de partidos
+│   ├── mundial/page.tsx      # Mundial (partidos, grupos, llaves)
+│   ├── ranking/page.tsx      # Tabla de posiciones con podio
+│   ├── feed/page.tsx         # Feed de actividad
+│   ├── admin/page.tsx        # Panel de administración
+│   ├── podium/page.tsx       # Predicciones de podio
+│   ├── terminos/page.tsx     # Términos y Condiciones
+│   ├── cookies/page.tsx      # Política de Cookies
+│   ├── dmca/page.tsx         # DMCA y terceros
+│   └── api/
+│       ├── world-cup-sync/route.ts  # Sincronización OpenFootball
+│       └── sync/route.ts            # Sync manual
+├── components/
+│   ├── AuthProvider.tsx       # Contexto de autenticación
+│   ├── Navbar.tsx             # Navegación principal
+│   ├── AnimatedLayout.tsx     # Transiciones de página
+│   ├── MatchCard.tsx          # Componente de apuesta
+│   ├── ScrollReveal.tsx       # Animación al hacer scroll
+│   ├── StreakBadge.tsx        # Badge de racha
+│   ├── UserSettings.tsx       # Configuración de usuario
+│   ├── NotificationBanner.tsx # Banner de permiso notificaciones
+│   └── NotificationService.tsx # Servicio de notificaciones
+├── lib/
+│   ├── firebase.ts            # Inicialización Firebase
+│   ├── worldCupData.ts        # API OpenFootball + procesamiento
+│   ├── rules.ts               # Cálculo de puntuación
+│   ├── countries.ts           # Lista de países + banderas
+│   ├── notifications.ts       # Sistema de notificaciones
+│   └── sounds.ts              # Web Audio API (sonidos)
+└── hooks/
+    └── useMatchNotifications.ts # Programación de recordatorios
 
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=tu-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tu-project-id.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=tu-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=tu-project-id.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=tu-sender-id
-NEXT_PUBLIC_FIREBASE_APP_ID=tu-app-id
+Archivos de configuración:
+├── .env.local                 # Variables de entorno (local)
+├── next.config.ts             # Configuración Next.js
+├── tailwind.config.ts         # Configuración Tailwind
+├── tsconfig.json              # Configuración TypeScript
+├── AGENTS.md                  # Reglas para asistentes IA
+└── README.md                  # Este archivo
 ```
 
 ---
 
-### 5. Instalación y Ejecución Local
+## 📌 Notas Técnicas
 
-Para probar y ejecutar la aplicación en tu computadora local:
-
-```bash
-# 1. Instalar las dependencias
-npm install
-
-# 2. Iniciar el servidor de desarrollo
-npm run dev
-```
-
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador para interactuar con la plataforma.
+- **Actualización de partidos:** OpenFootball JSON se consulta cada 30s; se detectan cambios (goles, entretiempo, finalización) y se muestran en una barra de eventos.
+- **Minutos en vivo:** Se calculan desde la hora de inicio del partido restando 15 min de entretiempo (tiempo real de juego).
+- **iOS Safari:** No soporta Notification API; usa `showInAppAlert()` como fallback.
+- **Sonidos:** Web Audio API con inicialización lazy en primera interacción del usuario.
+- **Animaciones:** `sessionStorage` para reproducir animaciones de podio y cambios de ranking solo una vez por sesión.
+- **Streak:** Se evalúa al finalizar cada partido; si un usuario no apostó, su racha se reinicia (type: null, count: 0).
 
 ---
 
-### 6. Despliegue en Vercel (100% Gratuito)
-
-Vercel aloja aplicaciones Next.js de manera gratuita con soporte nativo para Serverless Functions.
-
-1. **Subir tu código a GitHub:** Crea un repositorio privado o público en GitHub y empuja tu código local.
-2. **Importar en Vercel:**
-   - Inicia sesión en [vercel.com](https://vercel.com/) usando tu cuenta de GitHub.
-   - Haz clic en **Add New > Project**.
-   - Selecciona el repositorio de la polla futbolera.
-3. **Configurar Variables de Entorno en Vercel:**
-   - Expande la sección **Environment Variables** en la configuración de la importación.
-   - Agrega cada una de las variables que pusiste en tu `.env.local` con sus valores respectivos.
-4. **Desplegar:** Haz clic en **Deploy**. En menos de 2 minutos, tu sitio estará en vivo con un subdominio gratuito `https://tu-proyecto.vercel.app`.
-
----
-
-## 🏆 Consejos Prácticos de Gestión (Para el Admin)
-
-- **Cargar partidos rápidamente:** Al ingresar al panel de administración por primera vez, haz clic en **"Precargar partidos de prueba"** en la esquina superior derecha. Esto creará automáticamente 5 partidos del Mundial con fechas futuras para que tú y tu familia puedan probar el sistema de inmediato.
-- **Puntuación automática:** Cuando finalice un partido real, entra al panel de administración, escribe el marcador definitivo y haz clic en **"Finalizar"**. El sistema recalculará instantáneamente las apuestas de todos los jugadores activos y les sumará los puntos correspondientes a sus tablas en milisegundos.
-- **Predicciones del Podio:** Invita a tu familia a seleccionar su Campeón, Subcampeón y Tercer Puesto antes del inicio del torneo en la pestaña **"Podio"**. Una vez que se juegue el primer partido del torneo, estas selecciones se bloquearán automáticamente para todos.
-
----
-
-## 🆕 Novedades (2026-06-20)
-
-- Se agregó animación visual para las `rachas` de usuarios (`StreakBadge`) usando `framer-motion`.
-- La pestaña `Mundial` ahora incluye una vista conceptual de llaves (Ronda de 32 → Octavos → Cuartos → Semifinal → Final) y muestra minutos en partidos en vivo con detección de medio tiempo.
-
-Estas mejoras están diseñadas para ser ligeras y compatibles con la lógica existente en Firestore.
-
----
-
-## Contribuir y Despliegue Rápido
-
-- Para desarrollo local: `npm install` y `npm run dev`.
-- Asegúrate de definir las variables de entorno en `.env.local` antes de ejecutar localmente o desplegar en Vercel.
-
+*Hecho con ❤️ para la familia Cocunubo-Neuta mundialista. Junio 2026.*

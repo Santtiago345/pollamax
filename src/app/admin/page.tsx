@@ -37,6 +37,18 @@ interface Match {
   status: 'scheduled' | 'live' | 'finished';
 }
 
+function decodeBetMatchId(matchId: string): string {
+  // Format: wc2026_TeamA_TeamB_YYYY-MM-DD
+  const parts = matchId.replace('wc2026_', '').split('_');
+  if (parts.length < 3) return matchId;
+  const date = parts[parts.length - 1];
+  const teams = parts.slice(0, -1);
+  const mid = Math.ceil(teams.length / 2);
+  const teamA = teams.slice(0, mid).join(' ');
+  const teamB = teams.slice(mid).join(' ');
+  return `${teamA} vs ${teamB} (${date})`;
+}
+
 export default function AdminPage() {
   const { user, profile } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -76,6 +88,8 @@ export default function AdminPage() {
   const [selectedBetMatchId, setSelectedBetMatchId] = useState('');
   const [betsLoading, setBetsLoading] = useState(false);
   const [betDeleting, setBetDeleting] = useState<string | null>(null);
+  const [betMatchIds, setBetMatchIds] = useState<{ matchId: string; count: number }[]>([]);
+  const [betMatchIdsLoading, setBetMatchIdsLoading] = useState(false);
 
   // Gestión de Usuarios
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -585,21 +599,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleLoadBetsForMatch = async (matchId: string) => {
-    if (!matchId) { setBetsForMatch([]); return; }
-    setBetsLoading(true);
-    try {
-      const q = query(collection(db, 'bets'), where('matchId', '==', matchId));
-      const snap = await getDocs(q);
-      const list = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
-      setBetsForMatch(list);
-    } catch (e) {
-      console.error('Error loading bets:', e);
-    } finally {
-      setBetsLoading(false);
-    }
-  };
-
   const handleDeleteBet = async (docId: string) => {
     if (!window.confirm('¿Eliminar esta apuesta?')) return;
     setBetDeleting(docId);
@@ -623,11 +622,49 @@ export default function AdminPage() {
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
-      setBetsForMatch([]);
+      setBetMatchIds(prev => prev.filter(g => g.matchId !== matchId));
       alert(`Apuestas del partido ${matchId} eliminadas.`);
     } catch (e) {
       console.error('Error clearing bets:', e);
       alert('Error al limpiar apuestas.');
+    } finally {
+      setBetsLoading(false);
+    }
+  };
+
+  const handleLoadBetMatchIds = async () => {
+    setBetMatchIdsLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'bets'));
+      const countMap = new Map<string, number>();
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const mid = data.matchId;
+        if (mid) countMap.set(mid, (countMap.get(mid) || 0) + 1);
+      });
+      const list = Array.from(countMap.entries())
+        .map(([matchId, count]) => ({ matchId, count }))
+        .sort((a, b) => b.count - a.count);
+      setBetMatchIds(list);
+    } catch (e) {
+      console.error('Error loading bet match IDs:', e);
+      alert('Error al cargar apuestas.');
+    } finally {
+      setBetMatchIdsLoading(false);
+    }
+  };
+
+  const handleSelectBetMatchId = async (matchId: string) => {
+    setSelectedBetMatchId(matchId);
+    if (!matchId) { setBetsForMatch([]); return; }
+    setBetsLoading(true);
+    try {
+      const q = query(collection(db, 'bets'), where('matchId', '==', matchId));
+      const snap = await getDocs(q);
+      const list = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+      setBetsForMatch(list);
+    } catch (e) {
+      console.error('Error loading bets:', e);
     } finally {
       setBetsLoading(false);
     }
@@ -1158,73 +1195,96 @@ export default function AdminPage() {
 
           {/* Gestión de Apuestas */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2 text-white border-b border-zinc-800/80 pb-2">
-              <History className="h-5 w-5 text-cyan-400" />
-              Gestión de Apuestas
-            </h3>
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-white">
+                <History className="h-5 w-5 text-cyan-400" />
+                Gestión de Apuestas
+              </h3>
+              <button onClick={handleLoadBetMatchIds} disabled={betMatchIdsLoading} className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-all disabled:opacity-50">
+                {betMatchIdsLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                Examinar
+              </button>
+            </div>
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedBetMatchId}
-                  onChange={(e) => { setSelectedBetMatchId(e.target.value); handleLoadBetsForMatch(e.target.value); }}
-                  className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm outline-none text-zinc-300"
-                >
-                  <option value="">Selecciona un partido...</option>
-                  {matches.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.teamA} vs {m.teamB} ({m.status})
-                    </option>
-                  ))}
-                </select>
-                {selectedBetMatchId && (
-                  <button
-                    onClick={() => handleClearBetsForMatch(selectedBetMatchId)}
-                    disabled={betsLoading}
-                    className="flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 shrink-0"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Vaciar
-                  </button>
-                )}
-              </div>
-              {betsLoading && (
-                <div className="text-center py-4 text-zinc-500 text-sm animate-pulse">Cargando apuestas...</div>
-              )}
-              <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-                {betsForMatch.map((bet: any) => (
-                  <div key={bet.docId} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2.5 group hover:bg-zinc-900/30 transition-all">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 shrink-0">
-                        {bet.userPhoto ? (
-                          <img src={bet.userPhoto} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-[9px] text-zinc-500 font-bold">
-                            {bet.userName?.slice(0, 2).toUpperCase() || '??'}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-sm font-semibold text-zinc-300 truncate">{bet.userName}</span>
-                      <span className="text-sm font-black text-emerald-400">{bet.predA} - {bet.predB}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${bet.processed ? 'bg-zinc-700 text-zinc-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                        {bet.processed ? 'Procesada' : 'Pendiente'}
-                      </span>
-                      {bet.pointsEarned != null && (
-                        <span className="text-xs font-bold text-emerald-500">+{bet.pointsEarned} pts</span>
-                      )}
-                    </div>
+              {betMatchIds.length > 0 && !selectedBetMatchId && (
+                <div className="space-y-1 max-h-[250px] overflow-y-auto">
+                  {betMatchIds.map(item => (
                     <button
-                      onClick={() => handleDeleteBet(bet.docId)}
-                      disabled={betDeleting === bet.docId}
-                      className="shrink-0 h-7 w-7 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center disabled:opacity-50"
+                      key={item.matchId}
+                      onClick={() => handleSelectBetMatchId(item.matchId)}
+                      className="w-full flex items-center justify-between gap-3 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2.5 hover:bg-zinc-900/30 hover:border-cyan-500/30 transition-all text-left"
                     >
-                      {betDeleting === bet.docId ? <RefreshCw className="h-3 w-3 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                      <span className="text-xs text-zinc-300 font-medium truncate">{decodeBetMatchId(item.matchId)}</span>
+                      <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full shrink-0">{item.count} apuestas</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedBetMatchId && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => { setSelectedBetMatchId(''); setBetsForMatch([]); }}
+                      className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1 transition-all"
+                    >
+                      <X className="h-3 w-3" /> Volver
+                    </button>
+                    <button
+                      onClick={() => handleClearBetsForMatch(selectedBetMatchId)}
+                      disabled={betsLoading}
+                      className="flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/5 px-2.5 py-1 text-[10px] font-semibold text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Vaciar todas
                     </button>
                   </div>
-                ))}
-                {selectedBetMatchId && betsForMatch.length === 0 && !betsLoading && (
-                  <div className="text-center py-4 text-zinc-500 text-sm">No hay apuestas para este partido.</div>
-                )}
-              </div>
+                  <p className="text-[10px] text-zinc-500 truncate">{decodeBetMatchId(selectedBetMatchId)}</p>
+                  {betsLoading && (
+                    <div className="text-center py-4 text-zinc-500 text-sm animate-pulse">Cargando apuestas...</div>
+                  )}
+                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                    {betsForMatch.map((bet: any) => (
+                      <div key={bet.docId} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2.5 group hover:bg-zinc-900/30 transition-all">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+                            {bet.userPhoto ? (
+                              <img src={bet.userPhoto} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-[9px] text-zinc-500 font-bold">
+                                {bet.userName?.slice(0, 2).toUpperCase() || '??'}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold text-zinc-300 truncate">{bet.userName}</span>
+                          <span className="text-sm font-black text-emerald-400">{bet.predA} - {bet.predB}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${bet.processed ? 'bg-zinc-700 text-zinc-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                            {bet.processed ? 'Procesada' : 'Pendiente'}
+                          </span>
+                          {bet.pointsEarned != null && (
+                            <span className="text-xs font-bold text-emerald-500">+{bet.pointsEarned} pts</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeleteBet(bet.docId)}
+                          disabled={betDeleting === bet.docId}
+                          className="shrink-0 h-7 w-7 rounded-lg bg-zinc-800/50 text-zinc-500 hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center disabled:opacity-50"
+                        >
+                          {betDeleting === bet.docId ? <RefreshCw className="h-3 w-3 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    ))}
+                    {betsForMatch.length === 0 && !betsLoading && (
+                      <div className="text-center py-4 text-zinc-500 text-sm">No hay apuestas para este partido.</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {betMatchIds.length === 0 && !betMatchIdsLoading && !selectedBetMatchId && (
+                <div className="text-center py-6 text-zinc-500 text-sm">Haz clic en "Examinar" para listar todas las apuestas agrupadas por partido.</div>
+              )}
+              {betMatchIdsLoading && betMatchIds.length === 0 && (
+                <div className="text-center py-6 text-zinc-500 text-sm animate-pulse">Cargando...</div>
+              )}
             </div>
           </div>
 
