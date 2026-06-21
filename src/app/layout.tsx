@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import AnimatedLayout from '@/components/AnimatedLayout';
 import { NotificationBanner } from '@/components/NotificationBanner';
 import { NotificationService } from '@/components/NotificationService';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { Analytics } from "@vercel/analytics/next"
 import Link from 'next/link';
 
@@ -53,6 +54,7 @@ export default function RootLayout({
           </footer>
           <NotificationService />
           <NotificationBanner />
+          <WelcomeScreen />
         </AuthProvider>
         <Analytics />
       </body>

@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               photoURL: firebaseUser.photoURL || '',
               country: '',
             };
-            await setDoc(userRef, newProfile);
+            await setDoc(userRef, { ...newProfile, joinedAt: new Date().toISOString(), welcomeSeen: false });
 
             // Registrar en el feed de actividad
             try {

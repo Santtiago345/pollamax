@@ -131,3 +131,29 @@ export function initAudio() {
     console.warn('Audio not available');
   }
 }
+
+// Melodía de bienvenida — alegre y cálida, escala mayor ascendente y descendente
+export function playWelcomeSound() {
+  const notes = [
+    { freq: 523, dur: 0.18 },  // Do5
+    { freq: 587, dur: 0.15 },  // Re5
+    { freq: 659, dur: 0.15 },  // Mi5
+    { freq: 784, dur: 0.2 },   // Sol5
+    { freq: 659, dur: 0.12 },  // Mi5
+    { freq: 784, dur: 0.25 },  // Sol5
+    { freq: 880, dur: 0.3 },   // La5
+    { freq: 1047, dur: 0.4 },  // Do6
+    { freq: 784, dur: 0.15 },  // Sol5
+    { freq: 880, dur: 0.2 },   // La5
+    { freq: 784, dur: 0.25 },  // Sol5
+    { freq: 659, dur: 0.2 },   // Mi5
+    { freq: 587, dur: 0.15 },  // Re5
+    { freq: 523, dur: 0.35 },  // Do5
+  ];
+  let delay = 0;
+  notes.forEach(({ freq, dur }) => {
+    playTone(freq, dur, 'triangle', 0.13, delay);
+    playTone(freq * 2, dur * 0.5, 'sine', 0.04, delay + 0.02);
+    delay += dur;
+  });
+}
