@@ -102,9 +102,6 @@ export default function Home() {
   // Vista de Dashboard de Usuario Autenticado
   return (
     <div className="py-6 px-4 max-w-4xl mx-auto space-y-8 bg-zinc-950 text-white min-h-[85vh]">
-      {/* Partido en Vivo y Próximo Partido */}
-      <HomeMatchBanners />
-
       {/* Bienvenida */}
       <ScrollReveal>
       <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 sm:p-8 overflow-hidden">
@@ -156,6 +153,9 @@ export default function Home() {
         </div>
       </div>
       </ScrollReveal>
+
+      {/* Partido en Vivo y Próximo Partido */}
+      <HomeMatchBanners />
 
       {/* Grid de Accesos Directos */}
       <ScrollReveal delay={0.1}>
