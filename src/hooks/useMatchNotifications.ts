@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { collection, query, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
   requestNotificationPermission,
   getNotificationPermission,
   scheduleMatchReminders,
   cleanupSentNotifications,
+  sendBrowserNotification,
+  showInAppAlert,
+  isIOS,
+  isNotificationSupported,
   DEFAULT_NOTIFICATION_SETTINGS,
   type NotificationSettings,
 } from '@/lib/notifications';
@@ -25,18 +29,25 @@ interface MatchData {
 export function useMatchNotifications(userId: string | undefined) {
   const settingsRef = useRef<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
   const scheduledRef = useRef<Set<string>>(new Set());
+  const seenHistoryRef = useRef<Set<string>>(new Set());
+  const knownUsersRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!userId) return;
 
-    // Cargar settings de notificaciones del usuario
+    const notify = (title: string, body: string) => {
+      if (isIOS() || !isNotificationSupported()) {
+        showInAppAlert(title, body);
+      } else if (getNotificationPermission() === 'granted') {
+        sendBrowserNotification(title, body);
+      }
+    };
+
     const loadSettings = async () => {
       try {
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await getDoc(userRef);
+        const userSnap = await getDoc(doc(db, 'users', userId));
         if (userSnap.exists()) {
-          const data = userSnap.data();
-          const prefs = data.notificationPreferences;
+          const prefs = userSnap.data().notificationPreferences;
           if (prefs) {
             settingsRef.current = { ...DEFAULT_NOTIFICATION_SETTINGS, ...prefs };
           }
@@ -48,15 +59,44 @@ export function useMatchNotifications(userId: string | undefined) {
 
     loadSettings();
 
-    // Verificar permiso y pedir si es necesario
-    const perm = getNotificationPermission();
-    if (perm === 'default') {
-      // No pedir automáticamente - se hará desde el banner
-    }
+    // Escuchar nuevos usuarios
+    const usersUnsub = onSnapshot(collection(db, 'users'), (snap) => {
+      snap.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          if (data.uid === userId) return;
+          if (knownUsersRef.current.has(change.doc.id)) return;
+          knownUsersRef.current.add(change.doc.id);
+          if (!settingsRef.current.newPlayers) return;
+          notify('👋 Nuevo jugador', `${data.name || 'Alguien'} se unió a la PollaMax!`);
+        }
+      });
+    });
+
+    // Escuchar historial para apuestas y rachas
+    const historyUnsub = onSnapshot(
+      query(collection(db, 'history'), orderBy('timestamp', 'desc'), limit(10)),
+      (snap) => {
+        snap.docChanges().forEach((change) => {
+          if (change.type !== 'added') return;
+          const data = change.doc.data();
+          if (!data.message) return;
+          if (data.userId === userId) return;
+          if (seenHistoryRef.current.has(change.doc.id)) return;
+          seenHistoryRef.current.add(change.doc.id);
+
+          const msg = data.message || '';
+          if (msg.includes('Racha') && settingsRef.current.streaks) {
+            notify('🔥 Racha!', `${data.userName || 'Alguien'} consiguió una racha!`);
+          } else if ((msg.includes('apuesta') || msg.includes('Apuesta') || msg.includes('sumó')) && settingsRef.current.otherBets) {
+            notify('📊 Apuesta registrada', `${data.userName || 'Alguien'} realizó una apuesta.`);
+          }
+        });
+      }
+    );
 
     // Escuchar partidos y programar recordatorios
-    const q = query(collection(db, 'matches'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const matchUnsub = onSnapshot(query(collection(db, 'matches')), (snapshot) => {
       const now = Date.now();
       const in48h = now + 48 * 3600000;
 
@@ -70,12 +110,8 @@ export function useMatchNotifications(userId: string | undefined) {
 
         scheduledRef.current.add(match.id);
         scheduleMatchReminders(
-          match.id,
-          match.date,
-          match.teamA,
-          match.teamB,
-          match.teamAFlag || '🏳️',
-          match.teamBFlag || '🏳️',
+          match.id, match.date, match.teamA, match.teamB,
+          match.teamAFlag || '🏳️', match.teamBFlag || '🏳️',
           settingsRef.current,
         );
       });
@@ -83,6 +119,10 @@ export function useMatchNotifications(userId: string | undefined) {
       cleanupSentNotifications();
     });
 
-    return () => unsubscribe();
+    return () => {
+      usersUnsub();
+      historyUnsub();
+      matchUnsub();
+    };
   }, [userId]);
 }

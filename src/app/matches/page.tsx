@@ -65,7 +65,7 @@ export default function MatchesPage() {
         const raw = await fetchWorldCupData();
         if (raw && raw.matches) {
           const processed = processMatches(raw.matches);
-          const defined = processed.filter(m => isTeamDefined(m.teamA) && isTeamDefined(m.teamB));
+          const defined = processed.filter(m => isTeamDefined(m.teamA) || isTeamDefined(m.teamB));
           const mapped = defined.map(apiMatchToMatchCard);
           setMatches(mapped);
         } else {
