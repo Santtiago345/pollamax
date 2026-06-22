@@ -167,13 +167,13 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
     setCompareList([]);
   };
 
-  // Formatear Fecha
+  // Formatear Fecha (AM/PM)
   const formatMatchDate = (dateStr: string) => {
     const d = new Date(dateStr);
-    return d.toLocaleTimeString('es-ES', {
-      hour: '2-digit',
+    return d.toLocaleTimeString('es-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: false,
+      hour12: true,
     });
   };
 
@@ -190,7 +190,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, userBet, userId, us
         {/* Match Status Header */}
         <div className="flex justify-between items-center mb-4">
           <span className="text-xs text-zinc-500 font-medium">
-            {formatMatchDate(match.date)} hs
+            {formatMatchDate(match.date)}
           </span>
 
           {match.status === 'live' && (

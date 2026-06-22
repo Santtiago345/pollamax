@@ -1,11 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { Trophy, Star, ShieldCheck, Flame, LogIn, Swords, ClipboardList, ListOrdered, Calendar, Globe } from 'lucide-react';
+import { Trophy, Star, ShieldCheck, Flame, LogIn, Swords, ClipboardList, ListOrdered, Calendar, Globe, Timer, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
+import { fetchWorldCupData, processMatches, getSpanishName, type ProcessedMatch } from '@/lib/worldCupData';
+
+function useCountdown(targetDate: Date): string {
+  const [display, setDisplay] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+      if (diff <= 0) { setDisplay('Comenzando...'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setDisplay(`${h}h ${m}m ${s}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+
+  return display;
+}
 
 export default function Home() {
   const { user, profile, loading, loginWithGoogle, logout } = useAuth();
@@ -80,6 +102,9 @@ export default function Home() {
   // Vista de Dashboard de Usuario Autenticado
   return (
     <div className="py-6 px-4 max-w-4xl mx-auto space-y-8 bg-zinc-950 text-white min-h-[85vh]">
+      {/* Partido en Vivo y Próximo Partido */}
+      <HomeMatchBanners />
+
       {/* Bienvenida */}
       <ScrollReveal>
       <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 sm:p-8 overflow-hidden">
@@ -331,5 +356,135 @@ export default function Home() {
       </div>
       </ScrollReveal>
     </div>
+  );
+}
+
+function HomeMatchBanners() {
+  const [matches, setMatches] = useState<ProcessedMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    const load = async () => {
+      try {
+        const raw = await fetchWorldCupData();
+        if (raw?.matches) {
+          setMatches(processMatches(raw.matches));
+        }
+      } catch (e) {
+        console.error('Error loading matches for home:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const liveMatches = matches.filter(m => m.status === 'live');
+
+  const now = new Date();
+  const next = matches
+    .filter(m => m.status === 'scheduled' && new Date(m.date) > now)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+  if (loading || (liveMatches.length === 0 && !next)) return null;
+
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* En Vivo */}
+      {liveMatches.length > 0 ? (
+        liveMatches.map(lm => (
+          <motion.div
+            key={lm.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="rounded-xl border border-red-500/40 bg-gradient-to-br from-red-500/10 via-zinc-900/60 to-red-600/5 p-4 shadow-lg shadow-red-500/10"
+          >
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2">
+              <motion.span
+                animate={{ opacity: [1, 0.2, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                className="h-2 w-2 rounded-full bg-red-500"
+              />
+              En Vivo
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+                <span className="text-xl">{lm.teamAFlag}</span>
+                <span className="text-[11px] font-bold text-white truncate max-w-full">{getSpanishName(lm.teamA)}</span>
+              </div>
+              <div className="flex flex-col items-center px-1">
+                <span className="text-xl font-black text-red-400">{lm.scoreA ?? 0}-{lm.scoreB ?? 0}</span>
+                <span className="text-[9px] text-red-400 font-mono">{lm.minutes}'</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+                <span className="text-xl">{lm.teamBFlag}</span>
+                <span className="text-[11px] font-bold text-white truncate max-w-full">{getSpanishName(lm.teamB)}</span>
+              </div>
+            </div>
+          </motion.div>
+        ))
+      ) : (
+        <div />
+      )}
+
+      {/* Próximo Partido */}
+      {next && (
+        <NextMatchMini match={next} formatTime={formatTime} />
+      )}
+    </div>
+  );
+}
+
+function NextMatchMini({ match, formatTime }: { match: ProcessedMatch; formatTime: (d: Date) => string }) {
+  const matchTime = new Date(match.date);
+  const countdown = useCountdown(matchTime);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-zinc-900/60 to-emerald-600/5 p-4 shadow-lg shadow-emerald-500/5"
+    >
+      <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">
+        <Timer className="h-3 w-3" />
+        Próximo
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+          <span className="text-xl">{match.teamAFlag}</span>
+          <span className="text-[11px] font-bold text-white truncate max-w-full">{getSpanishName(match.teamA)}</span>
+        </div>
+        <div className="flex flex-col items-center px-1">
+          <span className="text-sm font-black text-emerald-400">VS</span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+          <span className="text-xl">{match.teamBFlag}</span>
+          <span className="text-[11px] font-bold text-white truncate max-w-full">{getSpanishName(match.teamB)}</span>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-emerald-500/10 pt-2">
+        <motion.span
+          key={countdown}
+          initial={{ opacity: 0.6, y: 2 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-sm font-black font-mono text-emerald-300 tracking-wider tabular-nums"
+        >
+          {countdown}
+        </motion.span>
+        <span className="text-[10px] text-zinc-400 flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {formatTime(matchTime)}
+        </span>
+      </div>
+    </motion.div>
   );
 }
