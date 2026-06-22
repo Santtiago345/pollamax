@@ -22,7 +22,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Bell, BellRing, Users, TrendingUp, UserPlus, History, Database, Search, X, Settings, MessageSquare, Eye, EyeOff, FileText } from 'lucide-react';
+import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Bell, BellRing, Users, TrendingUp, UserPlus, History, Database, Search, X, Settings, MessageSquare, Eye, EyeOff, FileText, Megaphone } from 'lucide-react';
 import { sendBrowserNotification, isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
 
 interface Match {
@@ -82,6 +82,8 @@ export default function AdminPage() {
   const [feedEntries, setFeedEntries] = useState<any[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedDeleting, setFeedDeleting] = useState<string | null>(null);
+  const [announcementText, setAnnouncementText] = useState('');
+  const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
 
   // Gestión de Apuestas
   const [betsForMatch, setBetsForMatch] = useState<any[]>([]);
@@ -581,6 +583,27 @@ export default function AdminPage() {
     }
   };
 
+  const handlePostAnnouncement = async () => {
+    if (!announcementText.trim()) { alert('Escribe un mensaje para el anuncio.'); return; }
+    if (!user) { alert('Debes iniciar sesión.'); return; }
+    setAnnouncementSubmitting(true);
+    try {
+      await addDoc(collection(db, 'announcements'), {
+        message: announcementText.trim(),
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid,
+        createdByName: profile?.name || user.email || 'Administrador',
+      });
+      setAnnouncementText('');
+      alert('Anuncio publicado. Todos los jugadores lo verán en el menú de anuncios.');
+    } catch (e) {
+      console.error('Error posting announcement:', e);
+      alert('Error al publicar el anuncio.');
+    } finally {
+      setAnnouncementSubmitting(false);
+    }
+  };
+
   const handleClearAllFeed = async () => {
     if (!window.confirm('¿Eliminar TODAS las entradas del feed? Esto no se puede deshacer.')) return;
     const code = prompt('⚠️  PELIGRO: Escribe "CONFIRMAR" para eliminar TODAS las entradas del feed:');
@@ -602,14 +625,37 @@ export default function AdminPage() {
   };
 
   const handleDeleteBet = async (docId: string) => {
-    if (!window.confirm('¿Eliminar esta apuesta?')) return;
+    if (!window.confirm('¿Eliminar esta apuesta? Se revertirán los puntos si ya fue procesada.')) return;
     setBetDeleting(docId);
     try {
-      await deleteDoc(doc(db, 'bets', docId));
+      const betSnap = await getDoc(doc(db, 'bets', docId));
+      if (!betSnap.exists()) { alert('La apuesta no existe.'); return; }
+      const betData = betSnap.data();
+
+      const batch = writeBatch(db);
+
+      if (betData.processed && betData.pointsEarned > 0) {
+        const userRef = doc(db, 'users', betData.userId);
+        batch.update(userRef, { points: increment(-betData.pointsEarned) });
+      }
+
+      batch.delete(doc(db, 'bets', docId));
+
+      if (betData.userName) {
+        const historyRef = doc(collection(db, 'history'));
+        batch.set(historyRef, {
+          userId: 'system',
+          userName: 'Sistema',
+          message: `🗑️ Apuesta de ${betData.userName} (${betData.predA}-${betData.predB}) eliminada por administrador.${betData.processed && betData.pointsEarned > 0 ? ` Se restaron ${betData.pointsEarned} pts.` : ''}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      await batch.commit();
       setBetsForMatch(prev => prev.filter(b => b.docId !== docId));
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error deleting bet:', e);
-      alert('Error al eliminar la apuesta.');
+      alert(`Error al eliminar la apuesta: ${e?.message || e?.code || 'Error desconocido'}. Revisa la consola para más detalles.`);
     } finally {
       setBetDeleting(null);
     }
@@ -920,6 +966,22 @@ export default function AdminPage() {
                 <Check className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
                 <h4 className="text-sm font-bold text-emerald-400">Podio Procesado</h4>
                 <p className="text-xs text-zinc-400 mt-1">Los puntos finales han sido repartidos a los participantes.</p>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('¿Reabrir el podio? Esto permitirá modificar los resultados y volver a procesar. Los puntos ya repartidos NO se revertirán automáticamente.')) return;
+                    try {
+                      await setDoc(doc(db, 'config', 'tournamentResults'), { processed: false }, { merge: true });
+                      setPodiumProcessedStatus(false);
+                      alert('Podio reabierto. Puedes modificar los resultados y volver a procesar.');
+                    } catch (e) {
+                      console.error('Error reopening podium:', e);
+                      alert('Error al reabrir el podio.');
+                    }
+                  }}
+                  className="mt-3 text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition-all"
+                >
+                  Reabrir Podio
+                </button>
               </div>
             ) : (
               <div className="space-y-4 text-sm">
@@ -1191,6 +1253,35 @@ export default function AdminPage() {
           {/* Gestión de Jugadores */}
           <PlayerManager db={db} writeBatch={writeBatch} increment={increment} doc={doc} getDocs={getDocs} collection={collection} />
 
+          {/* Gestión de Anuncios */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Megaphone className="h-5 w-5 text-pink-400" />
+                Anuncios
+              </h3>
+            </div>
+            <p className="text-xs text-zinc-500">Los anuncios aparecen en un menú desplegable para todos los jugadores (campana en la barra de navegación).</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={announcementText}
+                onChange={(e) => setAnnouncementText(e.target.value)}
+                placeholder="Escribe un anuncio para todos los jugadores..."
+                className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-pink-500 rounded-xl px-3.5 py-2.5 outline-none text-white text-sm"
+                onKeyDown={(e) => { if (e.key === 'Enter' && !announcementSubmitting) { handlePostAnnouncement(); } }}
+              />
+              <button
+                onClick={handlePostAnnouncement}
+                disabled={announcementSubmitting || !announcementText.trim()}
+                className="flex items-center gap-1.5 rounded-xl bg-pink-500 hover:bg-pink-600 px-4 py-2.5 text-xs font-bold text-white transition-all disabled:opacity-50 shrink-0"
+              >
+                {announcementSubmitting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Megaphone className="h-3.5 w-3.5" />}
+                Publicar
+              </button>
+            </div>
+          </div>
+
           {/* Gestión del Feed */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
@@ -1212,6 +1303,7 @@ export default function AdminPage() {
             {feedEntries.length > 0 && (
               <p className="text-xs text-zinc-500">{feedEntries.length} entradas cargadas</p>
             )}
+
             <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
               {feedEntries.map((entry: any) => (
                 <div key={entry.docId} className="flex items-start gap-3 rounded-xl border border-zinc-800/40 bg-zinc-900/10 px-3.5 py-2.5 group hover:bg-zinc-900/30 transition-all">

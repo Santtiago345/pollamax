@@ -105,6 +105,14 @@ export default function PodiumPage() {
     }
   };
 
+  const UNLOCK_DATE = new Date('2026-06-26T00:00:00');
+  const now = new Date();
+  const isLockedUntil = now < UNLOCK_DATE;
+
+  useEffect(() => {
+    if (isLockedUntil) setLocked(true);
+  }, [isLockedUntil]);
+
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-zinc-950 text-white">
@@ -134,7 +142,18 @@ export default function PodiumPage() {
         </p>
       </div>
 
-      {locked && (
+      {isLockedUntil && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-bold text-amber-400">Podio bloqueado hasta el 26 de junio</h4>
+            <p className="text-xs text-zinc-400 mt-1">
+              La sección de predicciones de podio estará disponible a partir del 26 de junio de 2026. ¡Vuelve entonces para registrar tus pronósticos!
+            </p>
+          </div>
+        </div>
+      )}
+      {!isLockedUntil && locked && (
         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
           <div>

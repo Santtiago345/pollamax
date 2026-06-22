@@ -2,13 +2,11 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trophy, RefreshCw, Star, Medal, HelpCircle } from 'lucide-react';
+import { Trophy, RefreshCw, Star, Medal, HelpCircle, Swords, TrendingUp, Users, DollarSign, X } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
-import { getFlagByCountryName } from '@/lib/countries';
 import { motion, AnimatePresence } from 'framer-motion';
-import { isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
 import { playPodiumRiseSound, playRankChangeSound, initAudio } from '@/lib/sounds';
 
 interface UserProfile {
@@ -26,7 +24,15 @@ interface UserProfile {
   streak?: { type: 'exact' | 'winner' | null; count: number };
 }
 
-// Hook para animar cambios de posición
+interface BetDetail {
+  matchId: string;
+  predA: number;
+  predB: number;
+  pointsEarned: number;
+  processed: boolean;
+  matchName: string;
+}
+
 function useRankAnimation(users: UserProfile[]) {
   const [animTrigger, setAnimTrigger] = useState(0);
   const prevUsersRef = useRef<UserProfile[]>([]);
@@ -37,12 +43,9 @@ function useRankAnimation(users: UserProfile[]) {
       setAnimTrigger(t => t + 1);
       return;
     }
-
-    // Detectar cambios de posición (nombres en diferente orden)
     const prevOrder = prevUsersRef.current.map(u => u.uid).join(',');
     const currOrder = users.map(u => u.uid).join(',');
     if (prevOrder !== currOrder) {
-      // Guardar en localStorage para que solo anime una vez por visita
       const lastSeenKey = `lastRankOrder_${users.map(u => u.uid).join('_')}`;
       const seen = sessionStorage.getItem(lastSeenKey);
       if (!seen) {
@@ -56,14 +59,23 @@ function useRankAnimation(users: UserProfile[]) {
   return animTrigger;
 }
 
+// Premios fijos (configurables por admin en el futuro)
+const PRIZE_POOL = 500000;
+const FIRST_PRIZE = Math.floor(PRIZE_POOL * 0.6);
+const SECOND_PRIZE = Math.floor(PRIZE_POOL * 0.4);
+
 export default function RankingPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [selectedUserBets, setSelectedUserBets] = useState<BetDetail[]>([]);
+  const [betsLoading, setBetsLoading] = useState(false);
+  const [betCounts, setBetCounts] = useState<Record<string, number>>({});
   const animTrigger = useRankAnimation(users);
   const [animPlayed, setAnimPlayed] = useState(false);
 
+  // Cargar usuarios
   useEffect(() => {
     const q = query(collection(db, 'users'), orderBy('points', 'desc'));
     const unsubscribe = onSnapshot(
@@ -73,7 +85,6 @@ export default function RankingPage() {
         snapshot.forEach((doc) => {
           usersList.push({ uid: doc.id, ...(doc.data() as any) } as UserProfile);
         });
-        // Orden alfabético local para empates
         usersList.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
         setUsers(usersList);
         setLoading(false);
@@ -83,11 +94,23 @@ export default function RankingPage() {
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, []);
 
-  // Activar animación de entrada después de cargar
+  // Cargar conteo de apuestas por usuario
+  useEffect(() => {
+    const q = query(collection(db, 'bets'), where('processed', '==', true));
+    const unsub = onSnapshot(q, (snap) => {
+      const counts: Record<string, number> = {};
+      snap.forEach(d => {
+        const uid = d.data().userId;
+        counts[uid] = (counts[uid] || 0) + 1;
+      });
+      setBetCounts(counts);
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (!loading && users.length > 0) {
       initAudio();
@@ -99,12 +122,43 @@ export default function RankingPage() {
     }
   }, [loading, users.length]);
 
-  // Sonido cuando cambian posiciones
   useEffect(() => {
     if (animTrigger > 0) {
       playRankChangeSound();
     }
   }, [animTrigger]);
+
+  const handleOpenDetails = async (profileItem: UserProfile) => {
+    setSelectedUser(profileItem);
+    setSelectedUserBets([]);
+    setBetsLoading(true);
+    try {
+      const q = query(
+        collection(db, 'bets'),
+        where('userId', '==', profileItem.uid),
+        where('processed', '==', true)
+      );
+      const snap = await getDocs(q);
+      const bets: BetDetail[] = snap.docs.map(d => {
+        const data = d.data();
+        const decoded = decodeMatchId(data.matchId || '');
+        return {
+          matchId: data.matchId,
+          predA: data.predA,
+          predB: data.predB,
+          pointsEarned: data.pointsEarned || 0,
+          processed: data.processed,
+          matchName: decoded,
+        };
+      });
+      bets.sort((a, b) => b.pointsEarned - a.pointsEarned);
+      setSelectedUserBets(bets);
+    } catch (e) {
+      console.error('Error loading bets:', e);
+    } finally {
+      setBetsLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -122,12 +176,47 @@ export default function RankingPage() {
 
   return (
     <div className="py-6 px-4 max-w-4xl mx-auto space-y-8 bg-zinc-950 text-white min-h-[85vh]">
-      {/* Cabecera */}
+      {/* Cabecera con stats */}
       <div className="border-b border-zinc-800 pb-5">
         <h1 className="text-3xl font-extrabold tracking-tight">Tabla de Posiciones</h1>
         <p className="text-zinc-400 text-sm mt-1">
           Ranking familiar en tiempo real. Los puntajes se actualizan al finalizar cada partido.
         </p>
+      </div>
+
+      {/* Panel de Bote y Participantes */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-zinc-900/40 p-4">
+          <div className="flex items-center gap-2 text-amber-400 mb-2">
+            <DollarSign className="h-5 w-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Bote Acumulado</span>
+          </div>
+          <span className="text-2xl font-black text-white">${PRIZE_POOL.toLocaleString('es-CO')}</span>
+          <div className="flex flex-col gap-1 mt-2 text-[11px] text-zinc-400">
+            <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-amber-400" /> 1° lugar: <strong className="text-amber-300">${FIRST_PRIZE.toLocaleString('es-CO')}</strong></span>
+            <span className="flex items-center gap-1"><Medal className="h-3 w-3 text-zinc-400" /> 2° lugar: <strong className="text-zinc-300">${SECOND_PRIZE.toLocaleString('es-CO')}</strong></span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-zinc-900/40 p-4">
+          <div className="flex items-center gap-2 text-emerald-400 mb-2">
+            <Users className="h-5 w-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Participantes</span>
+          </div>
+          <span className="text-2xl font-black text-white">{users.length}</span>
+          <p className="text-[11px] text-zinc-500 mt-1">Jugadores registrados</p>
+        </div>
+
+        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-zinc-900/40 p-4">
+          <div className="flex items-center gap-2 text-blue-400 mb-2">
+            <TrendingUp className="h-5 w-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Apuestas Totales</span>
+          </div>
+          <span className="text-2xl font-black text-white">
+            {Object.values(betCounts).reduce((a, b) => a + b, 0)}
+          </span>
+          <p className="text-[11px] text-zinc-500 mt-1">Pronósticos procesados</p>
+        </div>
       </div>
 
       {users.length === 0 ? (
@@ -140,9 +229,8 @@ export default function RankingPage() {
         </div>
       ) : (
         <>
-          {/* Podio Visual con Animación */}
+          {/* Podio Visual */}
           <div className="relative flex justify-center items-end gap-3 sm:gap-6 pt-8 pb-4 max-w-md mx-auto" style={{ minHeight: 220 }}>
-            {/* 2do Puesto */}
             {topThree[1] && (
               <motion.div
                 key={`p2-${topThree[1].uid}-${animTrigger}`}
@@ -174,7 +262,6 @@ export default function RankingPage() {
               </motion.div>
             )}
 
-            {/* 1er Puesto */}
             {topThree[0] && (
               <motion.div
                 key={`p1-${topThree[0].uid}-${animTrigger}`}
@@ -208,7 +295,6 @@ export default function RankingPage() {
               </motion.div>
             )}
 
-            {/* 3er Puesto */}
             {topThree[2] && (
               <motion.div
                 key={`p3-${topThree[2].uid}-${animTrigger}`}
@@ -241,7 +327,7 @@ export default function RankingPage() {
             )}
           </div>
 
-          {/* Tabla de clasificación completa */}
+          {/* Tabla de clasificación */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={animPlayed ? { opacity: 1 } : {}}
@@ -252,10 +338,11 @@ export default function RankingPage() {
               <table className="w-full border-collapse text-left text-sm text-zinc-300">
                 <thead className="bg-zinc-900/50 text-xs font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-850">
                   <tr>
-                    <th scope="col" className="px-6 py-4 text-center w-16">Pos</th>
-                    <th scope="col" className="px-6 py-4">Usuario</th>
-                    <th scope="col" className="px-6 py-4 text-center w-28">Puntos</th>
-                    <th scope="col" className="px-6 py-4 text-center w-24">Podio</th>
+                    <th scope="col" className="px-4 py-4 text-center w-12">Pos</th>
+                    <th scope="col" className="px-4 py-4">Usuario</th>
+                    <th scope="col" className="px-4 py-4 text-center w-20">Apuestas</th>
+                    <th scope="col" className="px-4 py-4 text-center w-20">Puntos</th>
+                    <th scope="col" className="px-4 py-4 text-center w-16">Detalle</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-900">
@@ -263,6 +350,7 @@ export default function RankingPage() {
                   {leaderboard.map((profileItem, index) => {
                     const isCurrentUser = user && profileItem.uid === user.uid;
                     const position = index + 1;
+                    const betCount = betCounts[profileItem.uid] || 0;
 
                     return (
                       <motion.tr
@@ -272,13 +360,10 @@ export default function RankingPage() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.2, delay: Math.min(index * 0.02, 0.4) }}
                         className={`transition-colors hover:bg-zinc-900/30 ${
-                          isCurrentUser
-                            ? 'bg-emerald-500/5 border-y border-emerald-500/20'
-                            : ''
+                          isCurrentUser ? 'bg-emerald-500/5 border-y border-emerald-500/20' : ''
                         }`}
                       >
-                        {/* Posición */}
-                        <td className="px-6 py-4 text-center font-bold">
+                        <td className="px-4 py-4 text-center font-bold">
                           {position === 1 ? (
                             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 text-xs font-black text-black">1</span>
                           ) : position === 2 ? (
@@ -298,8 +383,7 @@ export default function RankingPage() {
                           )}
                         </td>
 
-                        {/* Nombre del jugador */}
-                        <td className="px-6 py-4 font-semibold text-white">
+                        <td className="px-4 py-4 font-semibold text-white">
                           <div className="flex items-center gap-2">
                             <div className="h-8 w-8 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
                               {profileItem.photoURL ? (
@@ -313,15 +397,16 @@ export default function RankingPage() {
                               <StreakBadge type={profileItem.streak?.type || null} count={profileItem.streak?.count ?? 0} />
                             </span>
                             {isCurrentUser && (
-                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">
-                                Tú
-                              </span>
+                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase">Tú</span>
                             )}
                           </div>
                         </td>
 
-                        {/* Puntos acumulados */}
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-4 py-4 text-center">
+                          <span className="text-sm font-bold text-blue-400">{betCount}</span>
+                        </td>
+
+                        <td className="px-4 py-4 text-center">
                           <motion.span
                             key={`pts-${profileItem.points}`}
                             initial={{ scale: 1.3, color: '#fbbf24' }}
@@ -333,14 +418,13 @@ export default function RankingPage() {
                           </motion.span>
                         </td>
 
-                        {/* Botón para ver predicción de Podio */}
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-4 py-4 text-center">
                           <button
-                            onClick={() => setSelectedUser(profileItem)}
+                            onClick={() => handleOpenDetails(profileItem)}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-zinc-700 transition-all active:scale-95"
-                            title="Ver pronósticos de podio"
+                            title="Ver detalle de puntuación"
                           >
-                            <Trophy className="h-4 w-4" />
+                            <Swords className="h-4 w-4" />
                           </button>
                         </td>
                       </motion.tr>
@@ -352,65 +436,60 @@ export default function RankingPage() {
             </div>
           </motion.div>
 
-          {/* Modal de Detalle de Podio Predicho */}
+          {/* Modal de Detalle de Puntos */}
           {selectedUser && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedUser(null)}>
               <div
-                className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+                className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl max-h-[80vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-xl font-bold border-b border-zinc-800 pb-3 text-white flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-400" />
-                  Podio de {selectedUser.name.split(' ')[0]}
-                </h3>
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Swords className="h-5 w-5 text-emerald-400" />
+                    Puntos de {selectedUser.name.split(' ')[0]}
+                  </h3>
+                  <button onClick={() => setSelectedUser(null)} className="text-zinc-500 hover:text-white transition-colors">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
 
-                <div className="mt-4 space-y-3.5">
-                  {selectedUser.predictions ? (
-                    <>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="h-5 w-5 text-amber-400" />
-                          <span className="text-xs text-zinc-400 block font-semibold">Campeón (25 pts)</span>
-                        </div>
-                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                          <span className="text-xl">{getFlagByCountryName(selectedUser.predictions.champion)}</span>
-                          {selectedUser.predictions.champion}
-                        </span>
-                      </div>
+                <div className="mt-1 flex items-center justify-between px-1 py-2">
+                  <span className="text-xs text-zinc-500">Total acumulado</span>
+                  <span className="text-lg font-black text-emerald-400">{selectedUser.points} pts</span>
+                </div>
 
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-500/5 border border-zinc-500/10">
-                        <div className="flex items-center gap-2">
-                          <Medal className="h-5 w-5 text-zinc-400" />
-                          <span className="text-xs text-zinc-400 block font-semibold">Subcampeón (17 pts)</span>
-                        </div>
-                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                          <span className="text-xl">{getFlagByCountryName(selectedUser.predictions.runnerUp)}</span>
-                          {selectedUser.predictions.runnerUp}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-orange-500/5 border border-orange-500/10">
-                        <div className="flex items-center gap-2">
-                          <Medal className="h-5 w-5 text-orange-400" />
-                          <span className="text-xs text-zinc-400 block font-semibold">Tercer Puesto (13 pts)</span>
-                        </div>
-                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                          <span className="text-xl">{getFlagByCountryName(selectedUser.predictions.thirdPlace)}</span>
-                          {selectedUser.predictions.thirdPlace}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-6 text-zinc-500 italic flex flex-col items-center gap-2">
-                      <HelpCircle className="h-8 w-8 text-zinc-600" />
-                      <span>Este usuario no ha registrado sus predicciones de podio.</span>
+                <div className="flex-1 overflow-y-auto space-y-2 mt-1">
+                  {betsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-zinc-500" />
                     </div>
+                  ) : selectedUserBets.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-500 italic flex flex-col items-center gap-2">
+                      <HelpCircle className="h-8 w-8 text-zinc-600" />
+                      <span className="text-sm">No hay apuestas procesadas para este jugador.</span>
+                    </div>
+                  ) : (
+                    selectedUserBets.map((bet, i) => (
+                      <motion.div
+                        key={`${bet.matchId}-${i}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-zinc-800/40 bg-zinc-900/20 px-3.5 py-2.5"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-zinc-200 truncate">{bet.matchName}</p>
+                          <p className="text-[10px] text-zinc-500">Pronóstico: {bet.predA}-{bet.predB}</p>
+                        </div>
+                        <span className="text-sm font-black text-emerald-400 shrink-0">+{bet.pointsEarned}</span>
+                      </motion.div>
+                    ))
                   )}
                 </div>
 
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="mt-6 w-full rounded-xl bg-zinc-800 hover:bg-zinc-700 py-2.5 text-sm font-bold text-white transition-all"
+                  className="mt-4 w-full rounded-xl bg-zinc-800 hover:bg-zinc-700 py-2.5 text-sm font-bold text-white transition-all"
                 >
                   Cerrar
                 </button>
@@ -421,4 +500,16 @@ export default function RankingPage() {
       )}
     </div>
   );
+}
+
+function decodeMatchId(matchId: string): string {
+  if (!matchId) return 'Partido desconocido';
+  const parts = matchId.replace('wc2026_', '').split('_');
+  if (parts.length < 3) return matchId;
+  const date = parts[parts.length - 1];
+  const teams = parts.slice(0, -1);
+  const mid = Math.ceil(teams.length / 2);
+  const teamA = teams.slice(0, mid).join(' ');
+  const teamB = teams.slice(mid).join(' ');
+  return `${teamA} vs ${teamB}`;
 }

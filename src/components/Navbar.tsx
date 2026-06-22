@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import UserSettings from '@/components/UserSettings';
 import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home, Globe, Settings } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
+import AnnouncementDropdown from '@/components/AnnouncementDropdown';
 
 export const Navbar: React.FC = () => {
   const { user, profile, logout } = useAuth();
@@ -102,6 +103,7 @@ export const Navbar: React.FC = () => {
                 </div>
               </div>
 
+              <AnnouncementDropdown />
               <motion.button
                 onClick={logout}
                 whileHover={{ scale: 1.03 }}
@@ -193,10 +195,19 @@ export const Navbar: React.FC = () => {
                   <LogOut className="h-5 w-5" />
                   Cerrar Sesión
                 </motion.button>
-                <motion.button
+                <motion.div
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.15, delay: (navLinks.length + 1) * 0.03 }}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3"
+                >
+                  <AnnouncementDropdown />
+                  <span className="text-base font-semibold text-zinc-300">Anuncios</span>
+                </motion.div>
+                <motion.button
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: (navLinks.length + 2) * 0.03 }}
                   onClick={() => { closeMobileMenu(); setSettingsOpen(true); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
