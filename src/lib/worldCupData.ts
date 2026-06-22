@@ -199,6 +199,10 @@ export function getSpanishName(teamName: string): string {
   return SPANISH_MAP[teamName] ?? teamName;
 }
 
+export function isTeamDefined(teamName: string): boolean {
+  return teamName in FLAG_MAP;
+}
+
 // Tipos
 export interface OpenFootballGoal {
   name: string;

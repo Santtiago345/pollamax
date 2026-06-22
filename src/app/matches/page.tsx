@@ -6,7 +6,7 @@ import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { MatchCard } from '@/components/MatchCard';
 import { Calendar, RefreshCw, AlertCircle, Play, Globe } from 'lucide-react';
-import { fetchWorldCupData, processMatches, getSpanishName, type ProcessedMatch } from '@/lib/worldCupData';
+import { fetchWorldCupData, processMatches, getSpanishName, isTeamDefined, type ProcessedMatch } from '@/lib/worldCupData';
 import { motion } from 'framer-motion';
 
 interface Match {
@@ -65,7 +65,8 @@ export default function MatchesPage() {
         const raw = await fetchWorldCupData();
         if (raw && raw.matches) {
           const processed = processMatches(raw.matches);
-          const mapped = processed.map(apiMatchToMatchCard);
+          const defined = processed.filter(m => isTeamDefined(m.teamA) && isTeamDefined(m.teamB));
+          const mapped = defined.map(apiMatchToMatchCard);
           setMatches(mapped);
         } else {
           setError('No se pudieron obtener datos del Mundial.');
