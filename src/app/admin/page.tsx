@@ -103,6 +103,12 @@ export default function AdminPage() {
   const [configData, setConfigData] = useState<any>(null);
   const [showConfig, setShowConfig] = useState(false);
 
+  // Visibilidad de pestañas
+  const [navVisibility, setNavVisibility] = useState<Record<string, boolean>>({
+    matches: true, mundial: true, ranking: true, podium: true, feed: true
+  });
+  const [navVisSaving, setNavVisSaving] = useState<Record<string, boolean>>({});
+
   // 1. Verificar si el usuario es administrador
   const isAdmin = profile?.isAdmin === true;
 
@@ -142,6 +148,15 @@ export default function AdminPage() {
       }
     };
     checkPodiumStatus();
+
+    // Cargar visibilidad de pestañas
+    const loadNavVis = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'navVisibility'));
+        if (snap.exists()) setNavVisibility(prev => ({ ...prev, ...snap.data() }));
+      } catch (e) { console.error('Error loading nav visibility:', e); }
+    };
+    loadNavVis();
 
     return () => unsubscribe();
   }, [isAdmin]);
@@ -802,6 +817,19 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleNavTab = async (tab: string, visible: boolean) => {
+    setNavVisSaving(prev => ({ ...prev, [tab]: true }));
+    try {
+      await setDoc(doc(db, 'config', 'navVisibility'), { [tab]: visible }, { merge: true });
+      setNavVisibility(prev => ({ ...prev, [tab]: visible }));
+    } catch (e) {
+      console.error('Error updating nav visibility:', e);
+      alert('Error al cambiar visibilidad.');
+    } finally {
+      setNavVisSaving(prev => ({ ...prev, [tab]: false }));
+    }
+  };
+
   const handleClearCache = async () => {
     if (!window.confirm('¿Eliminar datos cacheados del Mundial (worldCupCache)?')) return;
     try {
@@ -1252,6 +1280,40 @@ export default function AdminPage() {
 
           {/* Gestión de Jugadores */}
           <PlayerManager db={db} writeBatch={writeBatch} increment={increment} doc={doc} getDocs={getDocs} collection={collection} />
+
+          {/* Visibilidad de Pestañas */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Eye className="h-5 w-5 text-sky-400" />
+                Visibilidad de Pestañas
+              </h3>
+            </div>
+            <p className="text-xs text-zinc-500">Controla qué pestañas ven los jugadores en la barra de navegación.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { key: 'matches', label: 'Partidos' },
+                { key: 'mundial', label: 'Mundial' },
+                { key: 'ranking', label: 'Posiciones' },
+                { key: 'podium', label: 'Podio' },
+                { key: 'feed', label: 'Feed' },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => handleToggleNavTab(tab.key, !navVisibility[tab.key])}
+                  disabled={navVisSaving[tab.key]}
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold transition-all disabled:opacity-50 ${
+                    navVisibility[tab.key]
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                      : 'border-zinc-700 bg-zinc-800/30 text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {navVisibility[tab.key] ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Gestión de Anuncios */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">

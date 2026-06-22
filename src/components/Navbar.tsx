@@ -9,11 +9,14 @@ import UserSettings from '@/components/UserSettings';
 import { Trophy, Menu, X, LogOut, Swords, ListOrdered, ClipboardList, ShieldCheck, Home, Globe, Settings } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
 import AnnouncementDropdown from '@/components/AnnouncementDropdown';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export const Navbar: React.FC = () => {
   const { user, profile, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [navVisibility, setNavVisibility] = useState<Record<string, boolean> | null>(null);
   const pathname = usePathname();
 
     // Bloquear scroll del fondo cuando el menú móvil está abierto
@@ -26,19 +29,30 @@ export const Navbar: React.FC = () => {
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
 
+  // Leer visibilidad de pestañas desde config
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'config', 'navVisibility'), (snap) => {
+      if (snap.exists()) setNavVisibility(snap.data() as Record<string, boolean>);
+      else setNavVisibility({});
+    }, () => setNavVisibility({}));
+    return () => unsub();
+  }, []);
+
   if (!user) return null;
 
-  const navLinks = [
-    { href: '/', label: 'Inicio', icon: Home },
-    { href: '/matches', label: 'Partidos', icon: Swords },
-    { href: '/mundial', label: 'Mundial', icon: Globe },
-    { href: '/ranking', label: 'Posiciones', icon: ListOrdered },
-    { href: '/podium', label: 'Podio', icon: Trophy },
-    { href: '/feed', label: 'Feed', icon: ClipboardList },
+  const allLinks = [
+    { href: '/', label: 'Inicio', icon: Home, key: 'home' },
+    { href: '/matches', label: 'Partidos', icon: Swords, key: 'matches' },
+    { href: '/mundial', label: 'Mundial', icon: Globe, key: 'mundial' },
+    { href: '/ranking', label: 'Posiciones', icon: ListOrdered, key: 'ranking' },
+    { href: '/podium', label: 'Podio', icon: Trophy, key: 'podium' },
+    { href: '/feed', label: 'Feed', icon: ClipboardList, key: 'feed' },
   ];
 
+  const navLinks = allLinks.filter(link => link.key === 'home' || !navVisibility || navVisibility[link.key] !== false);
+
   if (profile?.isAdmin) {
-    navLinks.push({ href: '/admin', label: 'Admin', icon: ShieldCheck });
+    navLinks.push({ href: '/admin', label: 'Admin', icon: ShieldCheck, key: 'admin' });
   }
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
