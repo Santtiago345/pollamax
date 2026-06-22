@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { collection, query, orderBy, onSnapshot, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Trophy, RefreshCw, Star, Medal, HelpCircle, Swords, TrendingUp, Users, DollarSign, X } from 'lucide-react';
 import StreakBadge from '@/components/StreakBadge';
@@ -59,10 +59,7 @@ function useRankAnimation(users: UserProfile[]) {
   return animTrigger;
 }
 
-// Premios fijos (configurables por admin en el futuro)
-const PRIZE_POOL = 0;
-const FIRST_PRIZE = Math.floor(PRIZE_POOL * 0.6);
-const SECOND_PRIZE = Math.floor(PRIZE_POOL * 0.4);
+const DEFAULT_PRIZE_POOL = 500000;
 
 export default function RankingPage() {
   const { user } = useAuth();
@@ -72,6 +69,7 @@ export default function RankingPage() {
   const [selectedUserBets, setSelectedUserBets] = useState<BetDetail[]>([]);
   const [betsLoading, setBetsLoading] = useState(false);
   const [betCounts, setBetCounts] = useState<Record<string, number>>({});
+  const [prizePool, setPrizePool] = useState(DEFAULT_PRIZE_POOL);
   const animTrigger = useRankAnimation(users);
   const [animPlayed, setAnimPlayed] = useState(false);
 
@@ -95,6 +93,17 @@ export default function RankingPage() {
       }
     );
     return () => unsubscribe();
+  }, []);
+
+  // Cargar bote acumulado desde config
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'prizePool'));
+        if (snap.exists() && snap.data().total != null) setPrizePool(snap.data().total);
+      } catch (e) { console.error('Error loading prize pool:', e); }
+    };
+    load();
   }, []);
 
   // Cargar conteo de apuestas por usuario
@@ -191,10 +200,10 @@ export default function RankingPage() {
             <DollarSign className="h-5 w-5" />
             <span className="text-xs font-bold uppercase tracking-wider">Bote Acumulado</span>
           </div>
-          <span className="text-2xl font-black text-white">${PRIZE_POOL.toLocaleString('es-CO')}</span>
+          <span className="text-2xl font-black text-white">${prizePool.toLocaleString('es-CO')}</span>
           <div className="flex flex-col gap-1 mt-2 text-[11px] text-zinc-400">
-            <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-amber-400" /> 1° lugar: <strong className="text-amber-300">${FIRST_PRIZE.toLocaleString('es-CO')}</strong></span>
-            <span className="flex items-center gap-1"><Medal className="h-3 w-3 text-zinc-400" /> 2° lugar: <strong className="text-zinc-300">${SECOND_PRIZE.toLocaleString('es-CO')}</strong></span>
+            <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-amber-400" /> 1° lugar: <strong className="text-amber-300">${Math.floor(prizePool * 0.6).toLocaleString('es-CO')}</strong></span>
+            <span className="flex items-center gap-1"><Medal className="h-3 w-3 text-zinc-400" /> 2° lugar: <strong className="text-zinc-300">${Math.floor(prizePool * 0.4).toLocaleString('es-CO')}</strong></span>
           </div>
         </div>
 

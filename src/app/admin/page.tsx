@@ -22,7 +22,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Bell, BellRing, Users, TrendingUp, UserPlus, History, Database, Search, X, Settings, MessageSquare, Eye, EyeOff, FileText, Megaphone } from 'lucide-react';
+import { ShieldAlert, Plus, Check, Play, Trophy, RefreshCw, Star, Trash2, Globe, Bell, BellRing, Users, TrendingUp, UserPlus, History, Database, Search, X, Settings, MessageSquare, Eye, EyeOff, FileText, Megaphone, DollarSign, Medal } from 'lucide-react';
 import { sendBrowserNotification, isIOS, isNotificationSupported, showInAppAlert } from '@/lib/notifications';
 
 interface Match {
@@ -52,6 +52,7 @@ function decodeBetMatchId(matchId: string): string {
 export default function AdminPage() {
   const { user, profile } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [matchesError, setMatchesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Formulario Nuevo Partido
@@ -103,6 +104,10 @@ export default function AdminPage() {
   const [configData, setConfigData] = useState<any>(null);
   const [showConfig, setShowConfig] = useState(false);
 
+  // Bote acumulado
+  const [prizePoolTotal, setPrizePoolTotal] = useState(500000);
+  const [prizePoolLoading, setPrizePoolLoading] = useState(false);
+
   // Visibilidad de pestañas
   const [navVisibility, setNavVisibility] = useState<Record<string, boolean>>({
     matches: true, mundial: true, ranking: true, podium: true, feed: true
@@ -119,19 +124,21 @@ export default function AdminPage() {
       return;
     }
 
-    const q = query(collection(db, 'matches'), orderBy('date', 'asc'));
     const unsubscribe = onSnapshot(
-      q,
+      collection(db, 'matches'),
       (snapshot) => {
         const matchesList: Match[] = [];
         snapshot.forEach((doc) => {
           matchesList.push({ id: doc.id, ...doc.data() } as Match);
         });
+        matchesList.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setMatches(matchesList);
+        setMatchesError(null);
         setLoading(false);
       },
       (error) => {
         console.error('Error fetching matches in admin:', error);
+        setMatchesError('Error al cargar partidos: ' + (error.message || error.code || 'Error desconocido. Revisa la consola.'));
         setLoading(false);
       }
     );
@@ -157,6 +164,14 @@ export default function AdminPage() {
       } catch (e) { console.error('Error loading nav visibility:', e); }
     };
     loadNavVis();
+
+    const loadPrizePool = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'prizePool'));
+        if (snap.exists() && snap.data().total != null) setPrizePoolTotal(snap.data().total);
+      } catch (e) { console.error('Error loading prize pool:', e); }
+    };
+    loadPrizePool();
 
     return () => unsubscribe();
   }, [isAdmin]);
@@ -1281,6 +1296,51 @@ export default function AdminPage() {
           {/* Gestión de Jugadores */}
           <PlayerManager db={db} writeBatch={writeBatch} increment={increment} doc={doc} getDocs={getDocs} collection={collection} />
 
+          {/* Bote Acumulado */}
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
+            <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-2">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-amber-400" />
+                Bote Acumulado
+              </h3>
+            </div>
+            <p className="text-xs text-zinc-500">Define el premio total que se repartirá entre los ganadores (60% 1°, 40% 2°).</p>
+            <div className="flex gap-2 items-center">
+              <span className="text-sm text-zinc-400 font-semibold">$</span>
+              <input
+                type="number"
+                min="0"
+                step="10000"
+                value={prizePoolTotal}
+                onChange={(e) => setPrizePoolTotal(Math.max(0, parseInt(e.target.value) || 0))}
+                className="flex-1 bg-zinc-950 border border-zinc-800 focus:border-amber-500 rounded-xl px-3.5 py-2.5 outline-none text-white text-sm font-bold"
+              />
+              <button
+                onClick={async () => {
+                  setPrizePoolLoading(true);
+                  try {
+                    await setDoc(doc(db, 'config', 'prizePool'), { total: prizePoolTotal }, { merge: true });
+                    alert(`Bote actualizado a $${prizePoolTotal.toLocaleString('es-CO')}`);
+                  } catch (e) {
+                    console.error('Error saving prize pool:', e);
+                    alert('Error al guardar el bote.');
+                  } finally {
+                    setPrizePoolLoading(false);
+                  }
+                }}
+                disabled={prizePoolLoading}
+                className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs font-bold text-black transition-all disabled:opacity-50 shrink-0"
+              >
+                {prizePoolLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                Guardar
+              </button>
+            </div>
+            <div className="flex gap-4 text-xs text-zinc-500">
+              <span><Trophy className="h-3 w-3 inline text-amber-400" /> 1°: <strong className="text-amber-300">${Math.floor(prizePoolTotal * 0.6).toLocaleString('es-CO')}</strong></span>
+              <span><Medal className="h-3 w-3 inline text-zinc-400" /> 2°: <strong className="text-zinc-300">${Math.floor(prizePoolTotal * 0.4).toLocaleString('es-CO')}</strong></span>
+            </div>
+          </div>
+
           {/* Visibilidad de Pestañas */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5 space-y-4">
             <div className="flex items-center gap-2 border-b border-zinc-800/80 pb-2">
@@ -1607,10 +1667,40 @@ export default function AdminPage() {
             </button>
           </div>
 
-          <h3 className="text-xl font-bold flex items-center gap-2 text-white border-b border-zinc-800 pb-3">
-            <Star className="h-5 w-5 text-emerald-400" />
-            Lista de Partidos ({matches.length})
-          </h3>
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <h3 className="text-xl font-bold flex items-center gap-2 text-white">
+              <Star className="h-5 w-5 text-emerald-400" />
+              Lista de Partidos ({matches.length})
+            </h3>
+            <button
+              onClick={async () => {
+                setMatchesError(null);
+                setLoading(true);
+                try {
+                  const snap = await getDocs(collection(db, 'matches'));
+                  const list: Match[] = [];
+                  snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Match));
+                  list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  setMatches(list);
+                } catch (error: any) {
+                  console.error('Error refreshing matches:', error);
+                  setMatchesError('Error al recargar: ' + (error.message || error.code));
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-all"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Recargar
+            </button>
+          </div>
+
+          {matchesError && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-400">
+              {matchesError}
+            </div>
+          )}
 
           {matches.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/10 p-12 text-center text-zinc-500">
