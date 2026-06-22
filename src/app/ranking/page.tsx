@@ -60,7 +60,7 @@ function useRankAnimation(users: UserProfile[]) {
 }
 
 // Premios fijos (configurables por admin en el futuro)
-const PRIZE_POOL = 500000;
+const PRIZE_POOL = 0;
 const FIRST_PRIZE = Math.floor(PRIZE_POOL * 0.6);
 const SECOND_PRIZE = Math.floor(PRIZE_POOL * 0.4);
 
